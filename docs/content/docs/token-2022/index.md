@@ -93,6 +93,12 @@ Mint extensions currently include:
 * transfer hook
 * metadata pointer
 * metadata
+* group pointer
+* group
+* group member pointer
+* group member
+* scaled UI amount
+* pausable
 
 Account extensions currently include:
 
