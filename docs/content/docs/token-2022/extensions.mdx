@@ -2219,3 +2219,121 @@ Coming soon!
 
   </Tab>
 </Tabs>
+
+### Scaled UI Amount
+
+Tokens whose value can change in value have many uses in the real world. For
+example, a stock split creates many new shares for holders, but it is
+impractical for a decentralized blockchain token to mint new tokens to all
+holders during a split event.
+
+With the Token-2022 extension model, however, we have the possibility to change
+how the UI amount of tokens are represented. Using the `ScaledUiAmount`
+extension and the `amount_to_ui_amount` instruction, you can set a UI multiplier
+on your token and fetch its UI amount at any time.
+
+**Note**: No new tokens are ever created, the UI amount returns the raw amount
+of tokens multiplied by the current multiplier. The feature is entirely cosmetic.
+
+#### Example: Create a mint with a UI amount multiplier
+
+<Tabs groupId="language" items={['CLI', 'JS']}>
+  <Tab value="CLI">
+
+```console
+$ spl-token --program-id TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb create-token --ui-amount-multiplier 1.5
+Creating token 66EV4CaihdqyQ1fbsr51wBsoqKLgAG5KiYz7r5XNrxUM under program TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+
+Address:  66EV4CaihdqyQ1fbsr51wBsoqKLgAG5KiYz7r5XNrxUM
+Decimals:  9
+
+Signature: 2sPziXu9M3duTCvsDvxQE9UKC9nBiLayi8muDvnjhA2qYvfXSZuaUieoq39MFjg4kf8xFrw6crmYSkPyV59dvudF
+```
+
+  </Tab>
+  <Tab value="JS">
+
+```jsx
+import {
+    clusterApiUrl,
+    Connection,
+    Keypair,
+    sendAndConfirmTransaction,
+    SystemProgram,
+    Transaction,
+    LAMPORTS_PER_SOL
+} from '@solana/web3.js';
+import {
+    createInitializeMintInstruction,
+    createInitializeScaledUiAmountConfigInstruction,
+    getMintLen,
+    ExtensionType,
+    TOKEN_2022_PROGRAM_ID
+} from '../src';
+
+(async () => {
+    const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+
+    const payer = Keypair.generate();
+    const airdropSignature = await connection.requestAirdrop(payer.publicKey, 2 * LAMPORTS_PER_SOL);
+    await connection.confirmTransaction({ signature: airdropSignature, ...(await connection.getLatestBlockhash()) });
+
+    const mintKeypair = Keypair.generate();
+    const decimals = 9;
+    const multiplier = 10.1;
+    const mintLen = getMintLen([ExtensionType.ScaledUiAmountConfig]);
+    const lamports = await connection.getMinimumBalanceForRentExemption(mintLen);
+    const transaction = new Transaction().add(
+        SystemProgram.createAccount({
+            fromPubkey: payer.publicKey,
+            newAccountPubkey: mintKeypair.publicKey,
+            space: mintLen,
+            lamports,
+            programId: TOKEN_2022_PROGRAM_ID,
+        }),
+        createInitializeScaledUiAmountConfigInstruction(mintKeypair.publicKey, payer.publicKey, multiplier, TOKEN_2022_PROGRAM_ID),
+        createInitializeMintInstruction(mintKeypair.publicKey, decimals, payer.publicKey, payer.publicKey, TOKEN_2022_PROGRAM_ID),
+    );
+    await sendAndConfirmTransaction(connection, transaction, [payer, mintKeypair]);
+})();
+```
+
+  </Tab>
+</Tabs>
+
+#### Example: Update the multiplier
+
+The multiplier authority may update the multiplier on the mint at any time, and
+optionally set a timestamp at which the new multiplier will take effect.
+
+<Tabs groupId="language" items={['CLI', 'JS']}>
+  <Tab value="CLI">
+
+```console
+$ spl-token update-ui-amount-multiplier 66EV4CaihdqyQ1fbsr51wBsoqKLgAG5KiYz7r5XNrxUM 10.5 1743000000
+Setting UI Multiplier for 66EV4CaihdqyQ1fbsr51wBsoqKLgAG5KiYz7r5XNrxUM to 10.5 at UNIX timestamp 1743000000
+
+Signature: 5DQs6hzkfGq3uotESuVwF7MGeMawwfQcm1e9RHaUeVySDV6xpUzYhzdb6ygqJfsEZqewgiDR5KuxaGzkdTMcDrTn
+```
+
+  </Tab>
+  <Tab value="JS">
+
+```jsx
+    const newMultiplier = 10.5;
+    const newMultiplierTimestamp = BigInt(1743000000);
+    await updateMultiplier(
+        connection,
+        payer,
+        mint,
+        authority,
+        newMultiplier,
+        newMultiplierTimestamp,
+        [],
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+    );
+```
+
+  </Tab>
+</Tabs>
