@@ -136,11 +136,13 @@ For information about the types and instructions, the Rust docs are available at
 The Token-2022 Program has been audited multiple times. All audits are published
 here as they are completed.
 
-Here are the completed audits as of 13 December 2023:
+Here are the completed audits as of 20 March 2025:
 
 * Halborn
     - Review commit hash [`c3137a`](https://github.com/solana-labs/solana-program-library/tree/c3137af9dfa2cc0873cc84c4418dea88ac542965/token/program-2022)
     - Final report https://github.com/anza-xyz/security-audits/blob/master/spl/HalbornToken2022Audit-2022-07-27.pdf
+    - Review commit hash [`56aaa6`](https://github.com/solana-labs/solana-program-library/commit/56aaa6732670824273414bb14bbea12c83a46829/token/program-2022)
+    - Final report https://github.com/anza-xyz/security-audits/blob/master/spl/HalbornToken2022Audit-2024-03-08.pdf
 * Zellic
     - Review commit hash [`54695b`](https://github.com/solana-labs/solana-program-library/tree/54695b233484722458b18c0e26ebb8334f98422c/token/program-2022)
     - Final report https://github.com/anza-xyz/security-audits/blob/master/spl/ZellicToken2022Audit-2022-12-05.pdf
@@ -156,3 +158,6 @@ Here are the completed audits as of 13 December 2023:
 * OtterSec (ZK Token SDK)
     - Review commit hash [`9e703f8`](https://github.com/solana-labs/solana/tree/9e703f8/zk-token-sdk)
     - Final report https://github.com/anza-xyz/security-audits/blob/master/spl/OtterSecZkTokenSdkAudit-2023-11-04.pdf
+* Certora
+    - Review commit hash [`260f80`](https://github.com/solana-labs/solana-program-library/tree/260f80928f796fc78c81efa4dc2a7732665e5a59)
+    - Final report https://github.com/anza-xyz/security-audits/blob/master/spl/CertoraToken2022Audit-2024-05-24.pdf
