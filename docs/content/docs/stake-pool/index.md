@@ -6,9 +6,11 @@ A program for pooling together SOL to be staked by an off-chain agent running
 a Delegation Bot which redistributes the stakes across the network and tries
 to maximize censorship resistance and rewards.
 
-| Information | Account Address |
+| Network | Account Address |
 | --- | --- |
-| Stake Pool Program | `SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy` |
+| Mainnet-beta | `SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy` |
+| Testnet | `SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy` |
+| Devnet | `DPoo15wWDqpPJJtS2MUZ49aRxqz5ZaaJCJP4z8bLuib` |
 
 NOTE: The devnet deployment of the program still uses v0.6.4, and is not suitable
 for testing. For testing, it is recommended to use testnet, a local test validator,
