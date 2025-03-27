@@ -2222,15 +2222,18 @@ Coming soon!
 
 ### Scaled UI Amount
 
-Tokens whose value can change in value have many uses in the real world. For
-example, a stock split creates many new shares for holders, but it is
-impractical for a decentralized blockchain token to mint new tokens to all
-holders during a split event.
+Tokens that can programmatically update amounts uniformly for all users
+simultaneously have many use cases in the real world. For example, a stock split
+doubles the number of shares for all holders. Due to the cost and additional
+complexity, it is currently impractical to mint new tokens to all holders during
+a split event.
 
 With the Token-2022 extension model, however, we have the possibility to change
 how the UI amount of tokens are represented. Using the `ScaledUiAmount`
 extension and the `amount_to_ui_amount` instruction, you can set a UI multiplier
 on your token and fetch its UI amount at any time.
+
+This feature can also be used for dividends or distributing yield.
 
 **Note**: No new tokens are ever created, the UI amount returns the raw amount
 of tokens multiplied by the current multiplier. The feature is entirely cosmetic.

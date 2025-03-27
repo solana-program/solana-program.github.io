@@ -85,6 +85,7 @@ You can read more about how this is done at the
 Mint extensions currently include:
 
 * confidential transfers
+* confidential mint-burn
 * transfer fees
 * closing mint
 * interest-bearing tokens
