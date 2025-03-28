@@ -1704,7 +1704,52 @@ Signature: 3ug4Ejs16jJgEm1WyBwDDxzh9xqPzQ3a2cmy1hSYiPFcLQi9U12HYF1Dbhzb2bx75SSyd
   </Tab>
   <Tab value="JS">
 
-Coming soon!
+```js
+import {
+  clusterApiUrl,
+  Connection,
+  Keypair,
+  LAMPORTS_PER_SOL,
+  sendAndConfirmTransaction,
+  SystemProgram,
+  Transaction,
+} from '@solana/web3.js';
+import {
+  createInitializeMetadataPointerInstruction,
+  createInitializeMintInstruction,
+  ExtensionType,
+  getMintLen,
+  TOKEN_2022_PROGRAM_ID,
+} from '@solana/spl-token';
+
+(async () => {
+  const payer = Keypair.generate();
+  const mint = Keypair.generate();
+  const decimals = 9;
+  const mintLen = getMintLen([ExtensionType.MetadataPointer]);
+
+  const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+  const airdropSignature = await connection.requestAirdrop(payer.publicKey, 2 * LAMPORTS_PER_SOL);
+  await connection.confirmTransaction({
+    signature: airdropSignature,
+    ...(await connection.getLatestBlockhash()),
+  });
+
+  const mintLamports = await connection.getMinimumBalanceForRentExemption(mintLen);
+  const mintTransaction = new Transaction().add(
+    SystemProgram.createAccount({
+      fromPubkey: payer.publicKey,
+      newAccountPubkey: mint.publicKey,
+      space: mintLen,
+      lamports: mintLamports,
+      programId: TOKEN_2022_PROGRAM_ID,
+    }),
+    createInitializeMetadataPointerInstruction(mint.publicKey, payer.publicKey, mint.publicKey, TOKEN_2022_PROGRAM_ID),
+    createInitializeMintInstruction(mint.publicKey, decimals, payer.publicKey, null, TOKEN_2022_PROGRAM_ID),
+  );
+  await sendAndConfirmTransaction(connection, mintTransaction, [payer, mint]);
+})();
+```
 
   </Tab>
 </Tabs>
@@ -1949,7 +1994,59 @@ Signature: 3ug4Ejs16jJgEm1WyBwDDxzh9xqPzQ3a2cmy1hSYiPFcLQi9U12HYF1Dbhzb2bx75SSyd
   </Tab>
   <Tab value="JS">
 
-Coming soon!
+```jsx
+import {
+    clusterApiUrl,
+    Connection,
+    Keypair,
+    LAMPORTS_PER_SOL,
+    sendAndConfirmTransaction,
+    SystemProgram,
+    Transaction,
+} from '@solana/web3.js';
+import {
+    createInitializeGroupPointerInstruction,
+    createInitializeGroupMemberPointerInstruction,
+    createInitializeMintInstruction,
+    ExtensionType,
+    getMintLen,
+    TOKEN_2022_PROGRAM_ID,
+} from '@solana/spl-token';
+
+(async () => {
+    const payer = Keypair.generate();
+    const mint = Keypair.generate();
+    const decimals = 9;
+    const mintLen = getMintLen([ExtensionType.GroupPointer]);
+    const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+
+    const airdropSignature = await connection.requestAirdrop(payer.publicKey, 2 * LAMPORTS_PER_SOL);
+    await connection.confirmTransaction({
+        signature: airdropSignature,
+        ...(await connection.getLatestBlockhash()),
+    });
+
+    const mintLamports = await connection.getMinimumBalanceForRentExemption(mintLen);
+    const mintTransaction = new Transaction().add(
+        SystemProgram.createAccount({
+            fromPubkey: payer.publicKey,
+            newAccountPubkey: mint.publicKey,
+            space: mintLen,
+            lamports: mintLamports,
+            programId: TOKEN_2022_PROGRAM_ID,
+        }),
+        createInitializeGroupPointerInstruction(
+            mint.publicKey,
+            payer.publicKey,
+            mint.publicKey,
+            TOKEN_2022_PROGRAM_ID,
+        ),
+        createInitializeMintInstruction(mint.publicKey, decimals, payer.publicKey, null, TOKEN_2022_PROGRAM_ID),
+    );
+    const sig = await sendAndConfirmTransaction(connection, mintTransaction, [payer, mint]);
+    console.log('Signature:', sig);
+})();
+```
 
   </Tab>
 </Tabs>
@@ -2026,7 +2123,58 @@ Signature: 3ug4Ejs16jJgEm1WyBwDDxzh9xqPzQ3a2cmy1hSYiPFcLQi9U12HYF1Dbhzb2bx75SSyd
   </Tab>
   <Tab value="JS">
 
-Coming soon!
+```jsx
+import {
+    clusterApiUrl,
+    Connection,
+    Keypair,
+    LAMPORTS_PER_SOL,
+    sendAndConfirmTransaction,
+    SystemProgram,
+    Transaction,
+} from '@solana/web3.js';
+import {
+    createInitializeGroupMemberPointerInstruction,
+    createInitializeMintInstruction,
+    ExtensionType,
+    getMintLen,
+    TOKEN_2022_PROGRAM_ID,
+} from '@solana/spl-token';
+
+(async () => {
+    const payer = Keypair.generate();
+    const mint = Keypair.generate();
+    const decimals = 9;
+    const mintLen = getMintLen([ExtensionType.GroupMemberPointer]);
+    const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+
+    const airdropSignature = await connection.requestAirdrop(payer.publicKey, 2 * LAMPORTS_PER_SOL);
+    await connection.confirmTransaction({
+        signature: airdropSignature,
+        ...(await connection.getLatestBlockhash()),
+    });
+
+    const mintLamports = await connection.getMinimumBalanceForRentExemption(mintLen);
+    const mintTransaction = new Transaction().add(
+        SystemProgram.createAccount({
+            fromPubkey: payer.publicKey,
+            newAccountPubkey: mint.publicKey,
+            space: mintLen,
+            lamports: mintLamports,
+            programId: TOKEN_2022_PROGRAM_ID,
+        }),
+        createInitializeGroupMemberPointerInstruction(
+            mint.publicKey,
+            payer.publicKey,
+            mint.publicKey,
+            TOKEN_2022_PROGRAM_ID,
+        ),
+        createInitializeMintInstruction(mint.publicKey, decimals, payer.publicKey, null, TOKEN_2022_PROGRAM_ID),
+    );
+    const sig = await sendAndConfirmTransaction(connection, mintTransaction, [payer, mint]);
+    console.log('Signature:', sig);
+})();
+```
 
   </Tab>
 </Tabs>
@@ -2068,6 +2216,243 @@ Signature: 2H16XtBqdwSbvvq8g5o2jhy4TknP6zgt71KHawEdyPvNuvusQrV4dPccUrMqjFeNTbk75
   <Tab value="JS">
 
 Coming soon!
+
+  </Tab>
+</Tabs>
+
+### Scaled UI Amount
+
+Tokens that can programmatically update amounts uniformly for all users
+simultaneously have many use cases in the real world. For example, a stock split
+doubles the number of shares for all holders. Due to the cost and additional
+complexity, it is currently impractical to mint new tokens to all holders during
+a split event.
+
+With the Token-2022 extension model, however, we have the possibility to change
+how the UI amount of tokens are represented. Using the `ScaledUiAmount`
+extension and the `amount_to_ui_amount` instruction, you can set a UI multiplier
+on your token and fetch its UI amount at any time.
+
+This feature can also be used for dividends or distributing yield.
+
+**Note**: No new tokens are ever created, the UI amount returns the raw amount
+of tokens multiplied by the current multiplier. The feature is entirely cosmetic.
+
+#### Example: Create a mint with a UI amount multiplier
+
+<Tabs groupId="language" items={['CLI', 'JS']}>
+  <Tab value="CLI">
+
+```console
+$ spl-token --program-id TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb create-token --ui-amount-multiplier 1.5
+Creating token 66EV4CaihdqyQ1fbsr51wBsoqKLgAG5KiYz7r5XNrxUM under program TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+
+Address:  66EV4CaihdqyQ1fbsr51wBsoqKLgAG5KiYz7r5XNrxUM
+Decimals:  9
+
+Signature: 2sPziXu9M3duTCvsDvxQE9UKC9nBiLayi8muDvnjhA2qYvfXSZuaUieoq39MFjg4kf8xFrw6crmYSkPyV59dvudF
+```
+
+  </Tab>
+  <Tab value="JS">
+
+```jsx
+import {
+    clusterApiUrl,
+    Connection,
+    Keypair,
+    sendAndConfirmTransaction,
+    SystemProgram,
+    Transaction,
+    LAMPORTS_PER_SOL
+} from '@solana/web3.js';
+import {
+    createInitializeMintInstruction,
+    createInitializeScaledUiAmountConfigInstruction,
+    getMintLen,
+    ExtensionType,
+    TOKEN_2022_PROGRAM_ID
+} from '../src';
+
+(async () => {
+    const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+
+    const payer = Keypair.generate();
+    const airdropSignature = await connection.requestAirdrop(payer.publicKey, 2 * LAMPORTS_PER_SOL);
+    await connection.confirmTransaction({ signature: airdropSignature, ...(await connection.getLatestBlockhash()) });
+
+    const mintKeypair = Keypair.generate();
+    const decimals = 9;
+    const multiplier = 10.1;
+    const mintLen = getMintLen([ExtensionType.ScaledUiAmountConfig]);
+    const lamports = await connection.getMinimumBalanceForRentExemption(mintLen);
+    const transaction = new Transaction().add(
+        SystemProgram.createAccount({
+            fromPubkey: payer.publicKey,
+            newAccountPubkey: mintKeypair.publicKey,
+            space: mintLen,
+            lamports,
+            programId: TOKEN_2022_PROGRAM_ID,
+        }),
+        createInitializeScaledUiAmountConfigInstruction(mintKeypair.publicKey, payer.publicKey, multiplier, TOKEN_2022_PROGRAM_ID),
+        createInitializeMintInstruction(mintKeypair.publicKey, decimals, payer.publicKey, payer.publicKey, TOKEN_2022_PROGRAM_ID),
+    );
+    await sendAndConfirmTransaction(connection, transaction, [payer, mintKeypair]);
+})();
+```
+
+  </Tab>
+</Tabs>
+
+#### Example: Update the multiplier
+
+The multiplier authority may update the multiplier on the mint at any time, and
+optionally set a timestamp at which the new multiplier will take effect.
+
+<Tabs groupId="language" items={['CLI', 'JS']}>
+  <Tab value="CLI">
+
+```console
+$ spl-token update-ui-amount-multiplier 66EV4CaihdqyQ1fbsr51wBsoqKLgAG5KiYz7r5XNrxUM 10.5 1743000000
+Setting UI Multiplier for 66EV4CaihdqyQ1fbsr51wBsoqKLgAG5KiYz7r5XNrxUM to 10.5 at UNIX timestamp 1743000000
+
+Signature: 5DQs6hzkfGq3uotESuVwF7MGeMawwfQcm1e9RHaUeVySDV6xpUzYhzdb6ygqJfsEZqewgiDR5KuxaGzkdTMcDrTn
+```
+
+  </Tab>
+  <Tab value="JS">
+
+```jsx
+    const newMultiplier = 10.5;
+    const newMultiplierTimestamp = BigInt(1743000000);
+    await updateMultiplier(
+        connection,
+        payer,
+        mint,
+        authority,
+        newMultiplier,
+        newMultiplierTimestamp,
+        [],
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+    );
+```
+
+  </Tab>
+</Tabs>
+
+### Pausable
+
+Token systems on many blockchains and even some traditional finance
+applications have the ability to "pause" all activity. During this time, it is
+not possible transfer, mint, or burn tokens. The Token-2022 program contains an
+extension to enable this behavior.
+
+By enabling the pausable extension on your mint, the program aborts all tranfers,
+mints, and burns when the `paused` flag is flipped.
+
+#### Example: Create a pausable mint
+
+<Tabs groupId="language" items={['CLI', 'JS']}>
+  <Tab value="CLI">
+
+```console
+$ spl-token --program-id TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb create-token --enable-pause
+Creating token HpSvH8DWiGi2Y4dkGqymdWhjBk5sPj933BkuJSu5b9rU under program TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+
+Address:  HpSvH8DWiGi2Y4dkGqymdWhjBk5sPj933BkuJSu5b9rU
+Decimals:  9
+
+Signature: 3AFUqZfodv1GRxsDpmkbyTXqPypf4bWd7A1E3X5ZstcTodAQVVEwvkq7UHHY9fZXViUFgVuPXJXrPZtM8MvFcKRN
+```
+
+  </Tab>
+  <Tab value="JS">
+
+```jsx
+import {
+    clusterApiUrl,
+    Connection,
+    Keypair,
+    sendAndConfirmTransaction,
+    SystemProgram,
+    Transaction,
+    LAMPORTS_PER_SOL
+} from '@solana/web3.js';
+import {
+    createInitializeMintInstruction,
+    createInitializePausableConfigInstruction,
+    getMintLen,
+    pause,
+    resume,
+    ExtensionType,
+    TOKEN_2022_PROGRAM_ID
+} from '../src';
+
+(async () => {
+    const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+
+    const payer = Keypair.generate();
+    const airdropSignature = await connection.requestAirdrop(payer.publicKey, 2 * LAMPORTS_PER_SOL);
+    await connection.confirmTransaction({ signature: airdropSignature, ...(await connection.getLatestBlockhash()) });
+
+    const mintKeypair = Keypair.generate();
+    const decimals = 9;
+    const mintLen = getMintLen([ExtensionType.PausableConfig]);
+    const lamports = await connection.getMinimumBalanceForRentExemption(mintLen);
+    const transaction = new Transaction().add(
+        SystemProgram.createAccount({
+            fromPubkey: payer.publicKey,
+            newAccountPubkey: mintKeypair.publicKey,
+            space: mintLen,
+            lamports,
+            programId: TOKEN_2022_PROGRAM_ID,
+        }),
+        createInitializePausableConfigInstruction(mintKeypair.publicKey, payer.publicKey, TOKEN_2022_PROGRAM_ID),
+        createInitializeMintInstruction(mintKeypair.publicKey, decimals, payer.publicKey, payer.publicKey, TOKEN_2022_PROGRAM_ID),
+    );
+    await sendAndConfirmTransaction(connection, transaction, [payer, mintKeypair]);
+})();
+```
+
+  </Tab>
+</Tabs>
+
+#### Example: Pausing or resuming a mint
+
+The pause authority may always choose to pause or unpause activity on the mint.
+
+<Tabs groupId="language" items={['CLI', 'JS']}>
+  <Tab value="CLI">
+
+```console
+$ spl-token pause HpSvH8DWiGi2Y4dkGqymdWhjBk5sPj933BkuJSu5b9rU
+Pausing mint, burn, and transfer for HpSvH8DWiGi2Y4dkGqymdWhjBk5sPj933BkuJSu5b9rU
+
+Signature: MBnzmsMUuwXQBQo4oLSt8wyv7Fq8GTzqTSzk9KKM9LEgjRadhqimgHGq1JU4MtpLq1BsFfBGfWkHDVhgvYA4mCs
+
+$ spl-token resume HpSvH8DWiGi2Y4dkGqymdWhjBk5sPj933BkuJSu5b9rU
+Resuming mint, burn, and transfer for HpSvH8DWiGi2Y4dkGqymdWhjBk5sPj933BkuJSu5b9rU
+
+Signature: 5A5frazN9VzMP5KiGGLNmXxE3gUJAptsbFweEyUdiFg7T2SsneVHSQvYT9ABR99uu5RjJ9fHNswBgWx8MQb7aVjD
+```
+
+  </Tab>
+  <Tab value="JS">
+
+```jsx
+    await pause(
+        connection,
+        payer,
+        mintKeypair.publicKey,                                                                    payer,
+    );
+    await resume(
+        connection,
+        payer,
+        mintKeypair.publicKey,
+        payer,
+    );
+```
 
   </Tab>
 </Tabs>
