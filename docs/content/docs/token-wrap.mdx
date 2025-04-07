@@ -1,0 +1,957 @@
+---
+title: Token Wrap
+description: A program for wrapping SPL tokens to enable interoperability between token standards. If you are building an app with a mint/token and find yourself wishing you could take advantage of some of the latest features of a specific token program, this might be for you!
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+## Features
+
+* **Bidirectional Wrapping:** Convert tokens between SPL Token and SPL Token 2022 standards in either direction,
+including conversions between different SPL Token 2022 mints.
+* **SPL Token 2022 Extension Support:** Preserve or add SPL Token 2022 extensions (like transfer fees, confidential
+transfers, etc.) during the wrapping process. Note: this requires forking and updating the `CreateMint` instruction.
+* **Transfer Hook Compatibility:**  Integrates with tokens that implement the SPL Transfer Hook interface,
+enabling custom logic on token transfers.
+* **Multisignature Support:** Compatible with multisig signers for both wrapping and unwrapping operations.
+
+## How It Works
+
+It supports three primary operations:
+
+1. **`CreateMint`:** This operation initializes a new wrapped token mint and its associated backpointer account. Note,
+the caller must pre-fund this account with lamports. This is to avoid requiring writer+signer privileges on this
+instruction.
+ * **Wrapped Mint:** An SPL Token or SPL Token 2022 mint account is created. The address of this mint is a
+PDA derived from the *unwrapped* token's mint address and the *wrapped* token program ID. This ensures a unique,
+deterministic relationship between the wrapped and unwrapped tokens. The wrapped mint's authority is also a PDA,
+controlled by the Token Wrap program.
+ * **Backpointer:** An account (also a PDA, derived from the *wrapped* mint address) is created to store the
+address of the original *unwrapped* token mint. This allows anyone to easily determine the unwrapped token
+corresponding to a wrapped token, facilitating unwrapping.
+
+2. **`Wrap`:**  This operation accepts deposits of unwrapped tokens and mints wrapped tokens.
+ * Unwrapped tokens are transferred from the user's account to an escrow account. Any unwrapped token account whose
+owner is a PDA controlled by the Token Wrap program can be used.
+ * An equivalent amount of wrapped tokens is minted to the user's wrapped token account.
+
+3. **`Unwrap`:** This operation burns wrapped tokens and releases unwrapped token deposits.
+ * Wrapped tokens are burned from the user's wrapped token account.
+ * An equivalent amount of unwrapped tokens is transferred from the escrow account to the user's unwrapped token
+account.
+
+The 1:1 relationship between wrapped and unwrapped tokens is maintained through the escrow mechanism, ensuring that
+wrapped tokens are always fully backed by their unwrapped counterparts.
+
+## Permissionless design
+
+The SPL Token Wrap program is designed to be **permissionless**. This means:
+
+* **Anyone can create a wrapped mint:**  No special permissions or whitelisting is required to create a wrapped
+version of an existing mint. The `CreateMint` instruction is open to all users, provided they can
+pay the required rent for the new accounts.
+* **Anyone can wrap and unwrap tokens:**  Once a wrapped mint has been created, any user holding the underlying
+unwrapped tokens can use the `Wrap` and `Unwrap` instructions. All transfers are controlled by PDAs owned by the Token
+Wrap program itself. However, it is important to note that if the *unwrapped* token has a freeze authority,
+that freeze authority is *preserved* in the wrapped token.
+
+## Source
+
+The Token Wrap Program's source is available on
+[GitHub](https://github.com/solana-program/token-wrap).
+
+## Security Audits
+
+The Token Wrap program is currently undergoing an audit with Zellic.
+
+## SDK
+
+*   **Rust Crate:** The program is written in Rust and available as the `spl-token-wrap` crate on [crates.io](https://crates.io/crates/spl-token-wrap) and [docs.rs](https://docs.rs/spl-token-wrap).
+*   **JavaScript bindings** for web development: [@solana-program/token-wrap](https://www.npmjs.com/package/@solana-program/token-wrap) ([github source](https://github.com/solana-program/token-wrap/tree/main/clients/js)).
+*   **Command-Line Interface (CLI):** The `spl-token-wrap-cli` utility allows direct interaction with the program via the command line for testing, scripting, or manual operations.
+
+## Reference Guide
+
+### Setup
+
+<Tabs groupId="language" items={['CLI', 'JS']}>
+    <Tab value="CLI">
+        The spl-token-wrap command-line utility can be used to interact with the Token Wrap program.
+
+        Install from crates.io
+        ```console
+        $ cargo install spl-token-wrap-cli
+        ```
+
+        or, build the CLI from source:
+
+        ```console
+        $ git clone https://github.com/solana-program/token-wrap.git
+        $ cd token-wrap
+        $ cargo build --bin spl-token-wrap
+        ```
+        Run `spl-token-wrap --help` for a full description of available commands.
+
+        The spl-token-wrap configuration is shared with the solana command-line tool.
+    </Tab>
+    <Tab value="JS">
+        npm
+        ```console
+        npm install @solana-program/token-wrap
+        ```
+        Yarn
+        ```console
+        yarn add @solana-program/token-wrap
+        ```
+        pnpm
+        ```console
+        pnpm add @solana-program/token-wrap
+        ```
+    </Tab>
+</Tabs>
+
+### Create a wrapped token mint
+To create a new wrapped token mint, first you need to identify the unwrapped token mint address you want to wrap and the to/from token programs.
+
+<Tabs groupId="language" items={['CLI', 'JS']}>
+    <Tab value="CLI">
+        ```console
+        $ UNWRAPPED_MINT_ADDRESS=BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
+        $ UNWRAPPED_TOKEN_PROGRAM=TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+        $ WRAPPED_TOKEN_PROGRAM=TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+
+        $ spl-token-wrap create-mint $UNWRAPPED_MINT_ADDRESS $UNWRAPPED_TOKEN_PROGRAM $WRAPPED_TOKEN_PROGRAM
+
+        Creating wrapped mint for BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
+        Funding wrapped_mint_account B8HbxGU4npjgjMX5xJFR2FYkgvAHdZqyVb8MyFvdsuNM with 1461600 lamports for rent
+        Funding backpointer_account CNjr898vsBdzWxrJApMSAQac4A7o7qLRcSseTb56X7C9 with 1113600 lamports for rent
+        Unwrapped mint address: BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
+        Wrapped mint address: B8HbxGU4npjgjMX5xJFR2FYkgvAHdZqyVb8MyFvdsuNM
+        Wrapped backpointer address: CNjr898vsBdzWxrJApMSAQac4A7o7qLRcSseTb56X7C9
+        Funded wrapped mint lamports: 1461600
+        Funded backpointer lamports: 1113600
+        Signature: 2UAPjhDogs8aTTfynWRi36KWez6jzmFJhAHPTBpYsamDvKRQ5Uqn2BXoz1mKfRwBPV8p1j1MSXLN7yZHLwb1wdnT
+        ```
+    </Tab>
+
+    <Tab value="JS">
+        ```typescript
+        import {
+            address,
+            createKeyPairSignerFromBytes,
+            createSolanaRpc,
+            createSolanaRpcSubscriptions,
+        } from '@solana/kit';
+        import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+        import { executeCreateMint } from '@solana-program/token-wrap';
+
+        // Replace these consts with your own
+        const PRIVATE_KEY_PAIR = new Uint8Array([
+            58, 188, 194, 176, 230, 94, 253, 2, 24, 163, 198, 177, 92, 79, 213, 87, 122, 150, 216, 175, 176,
+            159, 113, 144, 148, 82, 149, 249, 242, 255, 7, 1, 73, 203, 66, 98, 4, 2, 141, 236, 49, 10, 47,
+            188, 93, 170, 111, 125, 44, 155, 4, 124, 48, 18, 188, 30, 158, 78, 158, 34, 44, 100, 61, 21,
+        ]);
+        const UNWRAPPED_MINT_ADDRESS = address('5StBUZ2w8ShDN9iF7NkGpDNNH2wv9jK7zhArmVRpwrCt');
+
+        const main = async () => {
+            const rpc = createSolanaRpc('http://127.0.0.1:8899');
+            const rpcSubscriptions = createSolanaRpcSubscriptions('ws://127.0.0.1:8900');
+            const payer = await createKeyPairSignerFromBytes(PRIVATE_KEY_PAIR);
+
+            const createMintResult = await executeCreateMint({
+                rpc,
+                rpcSubscriptions,
+                unwrappedMint: UNWRAPPED_MINT_ADDRESS,
+                wrappedTokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+                payer,
+                idempotent: true,
+            });
+            console.log('======== Create Mint Successful ========');
+            console.log('Wrapped Mint:', createMintResult.wrappedMint);
+            console.log('Backpointer:', createMintResult.backpointer);
+            console.log('Funded wrapped mint lamports:', createMintResult.fundedWrappedMintLamports);
+            console.log('Funded backpointer lamports:', createMintResult.fundedBackpointerLamports);
+            console.log('Signature:', createMintResult.signature);
+        };
+
+        void main();
+
+        ```
+    </Tab>
+</Tabs>
+
+### Find PDAs for a wrapped token
+
+To interact with wrapped tokens, you need to know the PDAs (Program Derived Addresses) associated with them:
+
+<Tabs groupId="language" items={['CLI', 'JS']}>
+    <Tab value="CLI">
+        ```console
+        $ UNWRAPPED_MINT_ADDRESS=BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
+        $ WRAPPED_TOKEN_PROGRAM=TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+
+        $ spl-token-wrap find-pdas $UNWRAPPED_MINT_ADDRESS $WRAPPED_TOKEN_PROGRAM
+
+        Wrapped mint address: B8HbxGU4npjgjMX5xJFR2FYkgvAHdZqyVb8MyFvdsuNM
+        Wrapped mint authority: 8WdYPmtq8c6ZfmHMZUwCQL2E8qVHEV8rG9MXkyax3joR
+        Wrapped backpointer address: CNjr898vsBdzWxrJApMSAQac4A7o7qLRcSseTb56X7C9
+        ```
+    </Tab>
+
+    <Tab value="JS">
+        ```typescript
+        import { address } from '@solana/kit';
+        import { findBackpointerPda, findWrappedMintAuthorityPda, findWrappedMintPda } from '@solana-program/token-wrap';
+        import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+
+        const UNWRAPPED_MINT_ADDRESS = address('5StBUZ2w8ShDN9iF7NkGpDNNH2wv9jK7zhArmVRpwrCt');
+
+        const main = async () => {
+            const [wrappedMint] = await findWrappedMintPda({
+                unwrappedMint: UNWRAPPED_MINT_ADDRESS,
+                wrappedTokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+            });
+            const [backpointer] = await findBackpointerPda({ wrappedMint });
+            const [wrappedMintAuthority] = await findWrappedMintAuthorityPda({ wrappedMint });
+
+            console.log('WRAPPED_MINT_ADDRESS', wrappedMint);
+            console.log('BACKPOINTER', backpointer);
+            console.log('WRAPPED_MINT_AUTHORITY', wrappedMintAuthority);
+        };
+
+        void main();
+        ```
+    </Tab>
+</Tabs>
+
+### Create escrow account
+
+Before wrapping tokens, you need to create an account to hold the unwrapped tokens. It's mint authority must be the correct PDA (see `find-pdas` command above). There is also a helper to create this account:
+
+<Tabs groupId="language" items={['CLI', 'JS']}>
+    <Tab value="CLI">
+        ```console
+        $ UNWRAPPED_MINT_ADDRESS=BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
+        $ WRAPPED_TOKEN_PROGRAM=TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+
+        $ spl-token-wrap create-escrow-account $UNWRAPPED_MINT_ADDRESS $WRAPPED_TOKEN_PROGRAM
+
+        Creating escrow account under program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA for unwrapped mint BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e owned by PDA 8WdYPmtq8c6ZfmHMZUwCQL2E8qVHEV8rG9MXkyax3joR
+        Escrow Account Address: 4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3
+        Escrow Account Owner (PDA): 8WdYPmtq8c6ZfmHMZUwCQL2E8qVHEV8rG9MXkyax3joR
+        Escrow Token Program ID: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+        Signature: 3ysN6YEQcsYQBjnCPMas9xEGP53CSSvoL6CSJ1vJS1S5ZvtN5NbsUtDKQMs6hwCQHhsctcrEhLQBLTEBuQWEKqNE
+        ```
+    </Tab>
+
+    <Tab value="JS">
+        ```typescript
+        import {
+            address,
+            createKeyPairSignerFromBytes,
+            createSolanaRpc,
+            createSolanaRpcSubscriptions,
+        } from '@solana/kit';
+        import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+        import { createEscrowAccount } from '@solana-program/token-wrap';
+
+        // Replace these consts with your own
+        const PRIVATE_KEY_PAIR = new Uint8Array([
+            58, 188, 194, 176, 230, 94, 253, 2, 24, 163, 198, 177, 92, 79, 213, 87, 122, 150, 216, 175, 176,
+            159, 113, 144, 148, 82, 149, 249, 242, 255, 7, 1, 73, 203, 66, 98, 4, 2, 141, 236, 49, 10, 47,
+            188, 93, 170, 111, 125, 44, 155, 4, 124, 48, 18, 188, 30, 158, 78, 158, 34, 44, 100, 61, 21,
+        ]);
+        const UNWRAPPED_MINT_ADDRESS = address('5StBUZ2w8ShDN9iF7NkGpDNNH2wv9jK7zhArmVRpwrCt');
+
+        const main = async () => {
+            const rpc = createSolanaRpc('http://127.0.0.1:8899');
+            const rpcSubscriptions = createSolanaRpcSubscriptions('ws://127.0.0.1:8900');
+            const payer = await createKeyPairSignerFromBytes(PRIVATE_KEY_PAIR);
+
+            const escrowAccount = await createEscrowAccount({
+                rpc,
+                rpcSubscriptions,
+                payer,
+                unwrappedMint: UNWRAPPED_MINT_ADDRESS,
+                wrappedTokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+            });
+
+            console.log('ESCROW_ACCOUNT', escrowAccount);
+        };
+
+        void main();
+        ```
+
+    </Tab>
+</Tabs>
+
+### Wrap tokens (single signer)
+
+Escrows unwrapped tokens and mints wrapped tokens to recipient account.
+
+<Tabs groupId="language" items={['CLI', 'JS']}>
+    <Tab value="CLI">
+        ```console
+        $ UNWRAPPED_TOKEN_ACCOUNT=DKFjYKEFS4tkXjamwkuiGf555Lww3eRSWwNTbue9x14
+        $ ESCROW_ACCOUNT=4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3
+        $ WRAPPED_TOKEN_PROGRAM=TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+
+        $ spl-token-wrap wrap $UNWRAPPED_TOKEN_ACCOUNT $ESCROW_ACCOUNT $WRAPPED_TOKEN_PROGRAM 100
+
+        Wrapping 100 tokens from mint BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
+        Unwrapped mint address: BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
+        Wrapped mint address: B8HbxGU4npjgjMX5xJFR2FYkgvAHdZqyVb8MyFvdsuNM
+        Unwrapped token account: DKFjYKEFS4tkXjamwkuiGf555Lww3eRSWwNTbue9x14
+        Recipient wrapped token account: HKHfad5Rx7Vv1iWzPiQhx3cnXpbVfDonYRRo1e16x5Bt
+        Escrow account: 4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3
+        Amount: 100
+        Signers:
+          26xTNzcurTuXQfHSCCuamxmrDXbkbA38JtGC9GhEcKgVZwxnyvXBD5AMH8TXmkfpNw64noDPaS4Ezm4RLMvfq3nF
+        ```
+
+        You can specify a recipient token account with the `--recipient-token-account` option. If not provided, the associated token account of the fee payer will be used or created if it doesn't exist.
+
+        ```console
+        $ spl-token-wrap wrap $UNWRAPPED_TOKEN_ACCOUNT $ESCROW_ACCOUNT $WRAPPED_TOKEN_PROGRAM 100 \
+            --recipient-token-account $RECIPIENT_WRAPPED_TOKEN_ACCOUNT
+        ```
+    </Tab>
+
+    <Tab value="JS">
+        ```typescript
+        import {
+            address,
+            createKeyPairSignerFromBytes,
+            createSolanaRpc,
+            createSolanaRpcSubscriptions,
+        } from '@solana/kit';
+        import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+        import { executeSingleSignerWrap } from '@solana-program/token-wrap';
+
+        // Replace these consts with your own
+        const PRIVATE_KEY_PAIR = new Uint8Array([
+            58, 188, 194, 176, 230, 94, 253, 2, 24, 163, 198, 177, 92, 79, 213, 87, 122, 150, 216, 175, 176,
+            159, 113, 144, 148, 82, 149, 249, 242, 255, 7, 1, 73, 203, 66, 98, 4, 2, 141, 236, 49, 10, 47,
+            188, 93, 170, 111, 125, 44, 155, 4, 124, 48, 18, 188, 30, 158, 78, 158, 34, 44, 100, 61, 21,
+        ]);
+        const ESCROW_ACCOUNT = address('4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3');
+        const UNWRAPPED_TOKEN_ACCOUNT = address('CbuRmvG3frMoPFnsKfC2t8jTUHFjtnrKZBt2aqdqH4PG');
+        const RECIPIENT = address('HKHfad5Rx7Vv1iWzPiQhx3cnXpbVfDonYRRo1e16x5Bt');
+        const AMOUNT_TO_WRAP = 100n;
+
+        const main = async () => {
+            const rpc = createSolanaRpc('http://127.0.0.1:8899');
+            const rpcSubscriptions = createSolanaRpcSubscriptions('ws://127.0.0.1:8900');
+            const payer = await createKeyPairSignerFromBytes(PRIVATE_KEY_PAIR);
+
+            const wrapResult = await executeSingleSignerWrap({
+                rpc,
+                rpcSubscriptions,
+                payer,
+                unwrappedTokenAccount: UNWRAPPED_TOKEN_ACCOUNT,
+                escrowAccount: ESCROW_ACCOUNT,
+                wrappedTokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+                amount: AMOUNT_TO_WRAP,
+                recipientWrappedTokenAccount: RECIPIENT,
+            });
+
+            console.log('======== Wrap Successful ========');
+            console.log('Wrap amount:', wrapResult.amount);
+            console.log('Recipient account:', wrapResult.recipientWrappedTokenAccount);
+            console.log('Escrow Account:', wrapResult.escrowAccount);
+            console.log('Signature:', wrapResult.signature);
+        };
+
+        void main();
+        ```
+    </Tab>
+</Tabs>
+
+### Wrap tokens (multisig)
+
+An example wrapping tokens whose origin is a token account owned by a multisig.
+
+<Tabs groupId="language" items={['CLI', 'JS']}>
+    <Tab value="CLI">
+        There are two parts to this. The first is having the multisig members sign the message independently.
+        The second is the broadcaster collecting those signatures and making a final call.
+
+        Let's pretend we have a 2 of 3 multisig and the broadcaster will be the fee payer. Here's what that would look like:
+
+        Get a recent blockhash. This will need to be the same for all signers.
+        ```console
+        $ solana block
+        Blockhash: E12VZaDq99G7Tg38Jr7U2VWRCmxjzWzsow8dPMhA47Rm
+        ⬆️ send this to all signers
+        ```
+
+        First signer runs this command with their keypair:
+
+        ```console
+        Different for each signer
+        $ SIGNER_1=signer-1.json
+        $ SIGNER_2=42uzyxAMNRFhvwd1jjFE7Fts693bDi7QKu1hTXxhmpAK
+        $ FEE_PAYER=2cQ3SDmgHxMGU1Uabj7RZ35vtuLk3ZU1afnqEo5zoYk5
+
+        Same for everyone
+        $ BLOCKHASH=E12VZaDq99G7Tg38Jr7U2VWRCmxjzWzsow8dPMhA47Rm
+        $ UNWRAPPED_TOKEN_ACCOUNT=4jFsvSDhp9J67An6DUGwezTiunud11RXiaf2zqtG2yUL # owned by multisig
+        $ MULTISIG_ADDRESS=mgnqjedikMKaRtS5wrhVttuA12JaPXiqY619Gfef5eh
+        $ RECIPIENT_ACCOUNT=HKHfad5Rx7Vv1iWzPiQhx3cnXpbVfDonYRRo1e16x5Bt
+        $ UNWRAPPED_MINT=BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
+        $ ESCROW_ACCOUNT=4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3
+        $ UNWRAPPED_TOKEN_PROGRAM=TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+        $ WRAPPED_TOKEN_PROGRAM=TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+
+        $ spl-token-wrap wrap $UNWRAPPED_TOKEN_ACCOUNT $ESCROW_ACCOUNT $WRAPPED_TOKEN_PROGRAM 23 \
+            --transfer-authority $MULTISIG_ADDRESS \
+            --recipient-token-account $RECIPIENT_ACCOUNT \
+            --unwrapped-mint $UNWRAPPED_MINT \
+            --unwrapped-token-program $UNWRAPPED_TOKEN_PROGRAM \
+            --fee-payer $FEE_PAYER \
+            --multisig-signer $SIGNER_1 \
+            --multisig-signer $SIGNER_2 \
+            --blockhash $BLOCKHASH \
+            --sign-only
+
+        Signers (Pubkey=Signature):
+          DXj2Mn5FFQCZ5Hx5XsMX1UHGaGJtYYVLKfEYJng99JWS=4sQFJg338zP9bxX4Gw4KS58eXkpBB2pwjwo4szxCEVQZxrApzgYMN7riBYUnbvZPb84tsThPE1aHApiCCC9PSSP7
+        Absent Signers (Pubkey):
+          2cQ3SDmgHxMGU1Uabj7RZ35vtuLk3ZU1afnqEo5zoYk5
+          42uzyxAMNRFhvwd1jjFE7Fts693bDi7QKu1hTXxhmpAK
+        ```
+
+        Second signer uses their own keypair (note the change at the top):
+
+        ```console
+        Signer 2 uses their keypair and puts the pubkey for signer 1
+        $ SIGNER_1=DXj2Mn5FFQCZ5Hx5XsMX1UHGaGJtYYVLKfEYJng99JWS
+        $ SIGNER_2=signer-2.json
+        $ FEE_PAYER=2cQ3SDmgHxMGU1Uabj7RZ35vtuLk3ZU1afnqEo5zoYk5
+
+        $ BLOCKHASH=E12VZaDq99G7Tg38Jr7U2VWRCmxjzWzsow8dPMhA47Rm
+        $ UNWRAPPED_TOKEN_ACCOUNT=4jFsvSDhp9J67An6DUGwezTiunud11RXiaf2zqtG2yUL
+        $ MULTISIG_ADDRESS=mgnqjedikMKaRtS5wrhVttuA12JaPXiqY619Gfef5eh
+        $ RECIPIENT_ACCOUNT=HKHfad5Rx7Vv1iWzPiQhx3cnXpbVfDonYRRo1e16x5Bt
+        $ UNWRAPPED_MINT=BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
+        $ ESCROW_ACCOUNT=4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3
+        $ UNWRAPPED_TOKEN_PROGRAM=TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+        $ WRAPPED_TOKEN_PROGRAM=TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+
+        $ spl-token-wrap wrap $UNWRAPPED_TOKEN_ACCOUNT $ESCROW_ACCOUNT $WRAPPED_TOKEN_PROGRAM 23 \
+            --transfer-authority $MULTISIG_ADDRESS \
+            --recipient-token-account $RECIPIENT_ACCOUNT \
+            --unwrapped-mint $UNWRAPPED_MINT \
+            --unwrapped-token-program $UNWRAPPED_TOKEN_PROGRAM \
+            --fee-payer $FEE_PAYER \
+            --multisig-signer $SIGNER_1 \
+            --multisig-signer $SIGNER_2 \
+            --blockhash $BLOCKHASH \
+            --sign-only
+
+        Signers (Pubkey=Signature):
+            42uzyxAMNRFhvwd1jjFE7Fts693bDi7QKu1hTXxhmpAK=4UPUAV9USLFp8CKJ9u6gXhvUUFkpL2FTMbu3eJyyZ8DonjHJBEjUchuaM7j7tTaNWWF7zaRFfK5TkYvBytbV5vUR
+        Absent Signers (Pubkey):
+            2cQ3SDmgHxMGU1Uabj7RZ35vtuLk3ZU1afnqEo5zoYk5
+            DXj2Mn5FFQCZ5Hx5XsMX1UHGaGJtYYVLKfEYJng99JWS
+        ```
+
+        Now the broadcaster (and in this case, the fee payer as well) sends the last message with the `Pubkey=Signature` they have collected from Signer 1 and Signer 2:
+
+        ```console
+        $ SIGNER_1=DXj2Mn5FFQCZ5Hx5XsMX1UHGaGJtYYVLKfEYJng99JWS
+        $ SIGNATURE_1=DXj2Mn5FFQCZ5Hx5XsMX1UHGaGJtYYVLKfEYJng99JWS=4sQFJg338zP9bxX4Gw4KS58eXkpBB2pwjwo4szxCEVQZxrApzgYMN7riBYUnbvZPb84tsThPE1aHApiCCC9PSSP7
+        $ SIGNER_2=42uzyxAMNRFhvwd1jjFE7Fts693bDi7QKu1hTXxhmpAK
+        $ SIGNATURE_2=42uzyxAMNRFhvwd1jjFE7Fts693bDi7QKu1hTXxhmpAK=4UPUAV9USLFp8CKJ9u6gXhvUUFkpL2FTMbu3eJyyZ8DonjHJBEjUchuaM7j7tTaNWWF7zaRFfK5TkYvBytbV5vUR
+        $ FEE_PAYER="$HOME/.config/solana/id.json"
+
+        $ BLOCKHASH=E12VZaDq99G7Tg38Jr7U2VWRCmxjzWzsow8dPMhA47Rm
+        $ UNWRAPPED_TOKEN_ACCOUNT=4jFsvSDhp9J67An6DUGwezTiunud11RXiaf2zqtG2yUL
+        $ MULTISIG_ADDRESS=mgnqjedikMKaRtS5wrhVttuA12JaPXiqY619Gfef5eh
+        $ RECIPIENT_ACCOUNT=HKHfad5Rx7Vv1iWzPiQhx3cnXpbVfDonYRRo1e16x5Bt
+        $ UNWRAPPED_MINT=BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
+        $ ESCROW_ACCOUNT=4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3
+        $ UNWRAPPED_TOKEN_PROGRAM=TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+        $ WRAPPED_TOKEN_PROGRAM=TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+
+        $ spl-token-wrap wrap $UNWRAPPED_TOKEN_ACCOUNT $ESCROW_ACCOUNT $WRAPPED_TOKEN_PROGRAM 23 \
+            --transfer-authority $MULTISIG_ADDRESS \
+            --recipient-token-account $RECIPIENT_ACCOUNT \
+            --unwrapped-mint $UNWRAPPED_MINT \
+            --unwrapped-token-program $UNWRAPPED_TOKEN_PROGRAM \
+            --fee-payer $FEE_PAYER \
+            --multisig-signer $SIGNER_1 \
+            --multisig-signer $SIGNER_2 \
+            --blockhash $BLOCKHASH \
+            --signer $SIGNATURE_1 \
+            --signer $SIGNATURE_2
+
+        Wrapping 23 tokens from mint BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
+        Unwrapped mint address: BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
+        Wrapped mint address: B8HbxGU4npjgjMX5xJFR2FYkgvAHdZqyVb8MyFvdsuNM
+        Unwrapped token account: 4jFsvSDhp9J67An6DUGwezTiunud11RXiaf2zqtG2yUL
+        Recipient wrapped token account: HKHfad5Rx7Vv1iWzPiQhx3cnXpbVfDonYRRo1e16x5Bt
+        Escrow account: 4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3
+        Amount: 23
+        Signers:
+          5pBReBRzy8yWLbz5j5GNBVFTmwGy65d4BvzigUPRTWWRYx4SUceNWDb78h1ufaRdzyi7yNmKpdLHv2eNS7ziaH7L
+          3KdzhMYjFxBFZtQzEqfeugg6LVGhApSRj8pAx8HpgqCRU7C3gA2Wm5Hvx55taMAcpDWaKSJdtpgUJ8ksBVo4PDJU
+          259kbWfYYhhe4FjTWZCeCXhPN4q3VSKN4dRHMcb42i85jptfh82TocrEf13aj5qMMDux9btzL5RCV55AxCWJbu5Q
+        ```
+
+        Note all three needed signers in final broadcasted message.
+    </Tab>
+
+    <Tab value="JS">
+        ```typescript
+        import {
+            address,
+            createKeyPairSignerFromBytes,
+            createNoopSigner,
+            createSolanaRpc,
+            createSolanaRpcSubscriptions,
+            getBase58Decoder,
+        } from '@solana/kit';
+        import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+        import { findWrappedMintAuthorityPda } from '../generated';
+        import { multisigOfflineSignWrap } from '../wrap';
+        import { multisigBroadcast } from '../utilities';
+        import { TOKEN_PROGRAM_ADDRESS } from '@solana-program/token';
+
+        // Replace these consts with your own
+        const PRIVATE_KEY_PAIR = new Uint8Array([
+            58, 188, 194, 176, 230, 94, 253, 2, 24, 163, 198, 177, 92, 79, 213, 87, 122, 150, 216, 175, 176,
+            159, 113, 144, 148, 82, 149, 249, 242, 255, 7, 1, 73, 203, 66, 98, 4, 2, 141, 236, 49, 10, 47,
+            188, 93, 170, 111, 125, 44, 155, 4, 124, 48, 18, 188, 30, 158, 78, 158, 34, 44, 100, 61, 21,
+        ]);
+
+        const MULTISIG_PUBKEY_SPL_TOKEN = address('4ofshdhToSz56LLwTrZH7TrUnVJVk3uEgLQLQmYcZynF');
+        const SIGNER_A_KEYPAIR_BYTES = new Uint8Array([
+            77, 131, 162, 241, 28, 96, 241, 189, 123, 127, 7, 219, 35, 85, 12, 88, 193, 190, 213, 204, 199,
+            77, 116, 81, 115, 19, 74, 195, 204, 44, 131, 184, 153, 236, 12, 139, 32, 129, 221, 90, 26, 106,
+            30, 242, 54, 167, 146, 214, 199, 62, 64, 68, 227, 95, 113, 236, 13, 140, 113, 222, 221, 120, 169,
+            122,
+        ]);
+        const SIGNER_B_KEYPAIR_BYTES = new Uint8Array([
+            35, 38, 214, 119, 234, 198, 186, 126, 191, 31, 81, 169, 59, 193, 231, 194, 61, 89, 72, 115, 21,
+            160, 41, 85, 25, 35, 61, 134, 221, 207, 177, 245, 84, 168, 63, 96, 104, 70, 30, 42, 148, 66, 148,
+            229, 191, 138, 23, 59, 149, 133, 213, 104, 150, 140, 91, 158, 35, 176, 5, 99, 14, 68, 184, 16,
+        ]);
+
+        const WRAPPED_MINT_ADDRESS = address('B8HbxGU4npjgjMX5xJFR2FYkgvAHdZqyVb8MyFvdsuNM');
+        const UNWRAPPED_MINT_ADDRESS = address('E8r9ixwg7QYr6xCh4tSdHErZ6CUxQhVGHqF5bRoZXyyV');
+        const UNWRAPPED_TOKEN_ACCOUNT = address('DGNyuKAWP3susy6XMbVsYHy2AMrrKmh8pXM3WpQUeyL2'); // Must be owned by multisig account
+        const ESCROW = address('4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3');
+        const RECIPIENT = address('HKHfad5Rx7Vv1iWzPiQhx3cnXpbVfDonYRRo1e16x5Bt');
+        const AMOUNT_TO_WRAP = 100n;
+
+        const main = async () => {
+            const rpc = createSolanaRpc('http://127.0.0.1:8899');
+            const rpcSubscriptions = createSolanaRpcSubscriptions('ws://127.0.0.1:8900');
+            const payer = await createKeyPairSignerFromBytes(PRIVATE_KEY_PAIR);
+
+            const [wrappedMintAuthority] = await findWrappedMintAuthorityPda({
+                wrappedMint: WRAPPED_MINT_ADDRESS,
+            });
+
+            const { value: wrapBlockhash } = await rpc.getLatestBlockhash().send();
+
+            const signerA = await createKeyPairSignerFromBytes(SIGNER_A_KEYPAIR_BYTES);
+            const signerB = await createKeyPairSignerFromBytes(SIGNER_B_KEYPAIR_BYTES);
+
+            // Two signers and the payer sign the transaction independently
+
+            const wrapSignatureMapA = await multisigOfflineSignWrap({
+                payer: payer.address,
+                unwrappedTokenAccount: UNWRAPPED_TOKEN_ACCOUNT,
+                escrowAccount: ESCROW,
+                unwrappedTokenProgram: TOKEN_PROGRAM_ADDRESS,
+                wrappedTokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+                amount: AMOUNT_TO_WRAP,
+                unwrappedMint: UNWRAPPED_MINT_ADDRESS,
+                recipientWrappedTokenAccount: RECIPIENT,
+                transferAuthority: MULTISIG_PUBKEY_SPL_TOKEN,
+                wrappedMint: WRAPPED_MINT_ADDRESS,
+                wrappedMintAuthority,
+                multiSigners: [signerA, createNoopSigner(signerB.address)],
+                blockhash: wrapBlockhash,
+            });
+
+            const wrapSignatureMapB = await multisigOfflineSignWrap({
+                payer: payer.address,
+                unwrappedTokenAccount: UNWRAPPED_TOKEN_ACCOUNT,
+                escrowAccount: ESCROW,
+                unwrappedTokenProgram: TOKEN_PROGRAM_ADDRESS,
+                wrappedTokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+                amount: AMOUNT_TO_WRAP,
+                unwrappedMint: UNWRAPPED_MINT_ADDRESS,
+                recipientWrappedTokenAccount: RECIPIENT,
+                transferAuthority: MULTISIG_PUBKEY_SPL_TOKEN,
+                wrappedMint: WRAPPED_MINT_ADDRESS,
+                wrappedMintAuthority,
+                multiSigners: [createNoopSigner(signerA.address), signerB],
+                blockhash: wrapBlockhash,
+            });
+
+            const wrapSignatureMapC = await multisigOfflineSignWrap({
+                payer: payer,
+                unwrappedTokenAccount: UNWRAPPED_TOKEN_ACCOUNT,
+                escrowAccount: ESCROW,
+                unwrappedTokenProgram: TOKEN_PROGRAM_ADDRESS,
+                wrappedTokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+                amount: AMOUNT_TO_WRAP,
+                unwrappedMint: UNWRAPPED_MINT_ADDRESS,
+                recipientWrappedTokenAccount: RECIPIENT,
+                transferAuthority: MULTISIG_PUBKEY_SPL_TOKEN,
+                wrappedMint: WRAPPED_MINT_ADDRESS,
+                wrappedMintAuthority,
+                multiSigners: [createNoopSigner(signerA.address), createNoopSigner(signerB.address)],
+                blockhash: wrapBlockhash,
+            });
+
+            // Lastly, all signatures are combined together and broadcast
+
+            const wrapTx = await multisigBroadcast({
+                rpc,
+                rpcSubscriptions,
+                signedTxs: [wrapSignatureMapA, wrapSignatureMapB, wrapSignatureMapC],
+                blockhash: wrapBlockhash,
+            });
+
+            console.log('======== Multisig Wrap Successful ========');
+            for (const [pubkey, signature] of Object.entries(wrapTx.signatures)) {
+                if (signature) {
+                    const base58Sig = getBase58Decoder().decode(signature);
+                    console.log(`pubkey: ${pubkey}`);
+                    console.log(`signature: ${base58Sig}`);
+                    console.log('-----');
+                }
+            }
+        };
+        void main();
+        ```
+    </Tab>
+</Tabs>
+
+### Unwrap tokens (single signer)
+Burns wrapped tokens and releases unwrapped tokens from escrow.
+
+<Tabs groupId="language" items={['CLI', 'JS']}>
+    <Tab value="CLI">
+        ```console
+        $ ESCROW_ACCOUNT=4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3
+        $ WRAPPED_TOKEN_ACCOUNT=HKHfad5Rx7Vv1iWzPiQhx3cnXpbVfDonYRRo1e16x5Bt
+        $ UNWRAPPED_TOKEN_RECIPIENT=DKFjYKEFS4tkXjamwkuiGf555Lww3eRSWwNTbue9x14
+
+        $ spl-token-wrap unwrap $WRAPPED_TOKEN_ACCOUNT $ESCROW_ACCOUNT $UNWRAPPED_TOKEN_RECIPIENT 50
+
+        Unwrapping 50 tokens from mint BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
+        Unwrapped token program: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+        Unwrapped mint address: BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
+        Recipient unwrapped token account: DKFjYKEFS4tkXjamwkuiGf555Lww3eRSWwNTbue9x14
+        Amount unwrapped: 50
+        Signers:
+          4HjHkjpjZztvoYT95mKHy2wH7z7iAFqpxSMeeMdUpPTzsjZN3vKg1KXvTMV7VT3jK6CaePYYXYDCTm52KTWz6du
+        ```
+    </Tab>
+
+    <Tab value="JS">
+        ```typescript
+        import {
+        address,
+            createKeyPairSignerFromBytes,
+            createSolanaRpc,
+            createSolanaRpcSubscriptions,
+        } from '@solana/kit';
+        import { executeSingleSignerUnwrap } from '../unwrap';
+
+        // Replace these consts with your own
+        const PRIVATE_KEY_PAIR = new Uint8Array([
+            58, 188, 194, 176, 230, 94, 253, 2, 24, 163, 198, 177, 92, 79, 213, 87, 122, 150, 216, 175, 176,
+            159, 113, 144, 148, 82, 149, 249, 242, 255, 7, 1, 73, 203, 66, 98, 4, 2, 141, 236, 49, 10, 47,
+            188, 93, 170, 111, 125, 44, 155, 4, 124, 48, 18, 188, 30, 158, 78, 158, 34, 44, 100, 61, 21,
+        ]);
+        const WRAPPED_TOKEN_ACCOUNT = address('HKHfad5Rx7Vv1iWzPiQhx3cnXpbVfDonYRRo1e16x5Bt');
+        const ESCROW = address('4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3');
+        const RECIPIENT = address('DKFjYKEFS4tkXjamwkuiGf555Lww3eRSWwNTbue9x14');
+        const AMOUNT_TO_WRAP = 100n;
+
+        const main = async () => {
+            const rpc = createSolanaRpc('http://127.0.0.1:8899');
+            const rpcSubscriptions = createSolanaRpcSubscriptions('ws://127.0.0.1:8900');
+            const payer = await createKeyPairSignerFromBytes(PRIVATE_KEY_PAIR);
+
+            const unwrapResult = await executeSingleSignerUnwrap({
+                rpc,
+                rpcSubscriptions,
+                payer,
+                wrappedTokenAccount: WRAPPED_TOKEN_ACCOUNT,
+                unwrappedEscrow: ESCROW,
+                amount: AMOUNT_TO_WRAP,
+                recipientUnwrappedToken: RECIPIENT,
+            });
+
+            console.log('======== Unwrap Successful ========');
+            console.log('Unwrapped amount:', unwrapResult.amount);
+            console.log('Recipient account:', unwrapResult.recipientUnwrappedToken);
+            console.log('Signature:', unwrapResult.signature);
+        };
+
+        void main();
+        ```
+    </Tab>
+</Tabs>
+
+### Unwrap tokens (multisig)
+
+An example unwrapping tokens whose origin is a token account owned by a multisig.
+
+<Tabs groupId="language" items={['CLI', 'JS']}>
+    <Tab value="CLI">
+        There are two parts to this. The first is having the multisig members sign the message independently.
+        The second is the broadcaster collecting those signatures and making a final call.
+
+        Let's pretend we have a 2 of 3 multisig and the broadcaster will be the fee payer. Here's what that would look like:
+
+        Get a recent blockhash. This will need to be the same for all signers.
+        ```console
+        $ solana block
+        Blockhash: E12VZaDq99G7Tg38Jr7U2VWRCmxjzWzsow8dPMhA47Rm
+        ⬆️ send this to all signers
+        ```
+
+        First signer runs this command with their keypair:
+
+        ```console
+        Different for each signer
+        $ SIGNER_1=signer-1.json
+        $ SIGNER_2=42uzyxAMNRFhvwd1jjFE7Fts693bDi7QKu1hTXxhmpAK
+        $ FEE_PAYER=2cQ3SDmgHxMGU1Uabj7RZ35vtuLk3ZU1afnqEo5zoYk5
+
+        Same for everyone
+        $ BLOCKHASH=E12VZaDq99G7Tg38Jr7U2VWRCmxjzWzsow8dPMhA47Rm
+        $ WRAPPED_TOKEN_ACCOUNT=3FzdqSEo32BcFgTUqWL5QakZGQBRX91yBAQFo1vGsCji
+        $ MULTISIG_ADDRESS=FFQvYvhaWnHeGsCMfixccUMdnXPgDrkG3KkGzpfBHFPb # note this should have the same program-id as wrapped token account
+        $ UNWRAPPED_TOKEN_RECIPIENT=DKFjYKEFS4tkXjamwkuiGf555Lww3eRSWwNTbue9x14
+        $ UNWRAPPED_MINT=BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
+        $ ESCROW_ACCOUNT=4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3
+        $ UNWRAPPED_TOKEN_PROGRAM=TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+        $ WRAPPED_TOKEN_PROGRAM=TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+
+        $ spl-token-wrap unwrap $WRAPPED_TOKEN_ACCOUNT $ESCROW_ACCOUNT $UNWRAPPED_TOKEN_RECIPIENT 5 \
+            --transfer-authority $MULTISIG_ADDRESS \
+            --fee-payer $FEE_PAYER \
+            --unwrapped-mint $UNWRAPPED_MINT \
+            --wrapped-token-program $WRAPPED_TOKEN_PROGRAM \
+            --unwrapped-token-program $UNWRAPPED_TOKEN_PROGRAM \
+            --multisig-signer $SIGNER_1 \
+            --multisig-signer $SIGNER_2 \
+            --blockhash $BLOCKHASH \
+            --sign-only
+        ```
+
+        Second signer uses their own keypair (note the change at the top):
+
+        ```console
+        Signer 2 uses their keypair and puts the pubkey for signer 1
+        $ SIGNER_1=DXj2Mn5FFQCZ5Hx5XsMX1UHGaGJtYYVLKfEYJng99JWS
+        $ SIGNER_2=signer-2.json
+        $ FEE_PAYER=2cQ3SDmgHxMGU1Uabj7RZ35vtuLk3ZU1afnqEo5zoYk5
+
+        $ BLOCKHASH=E12VZaDq99G7Tg38Jr7U2VWRCmxjzWzsow8dPMhA47Rm
+        $ WRAPPED_TOKEN_ACCOUNT=3FzdqSEo32BcFgTUqWL5QakZGQBRX91yBAQFo1vGsCji
+        $ MULTISIG_ADDRESS=FFQvYvhaWnHeGsCMfixccUMdnXPgDrkG3KkGzpfBHFPb
+        $ UNWRAPPED_TOKEN_RECIPIENT=DKFjYKEFS4tkXjamwkuiGf555Lww3eRSWwNTbue9x14
+        $ UNWRAPPED_MINT=BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
+        $ ESCROW_ACCOUNT=4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3
+        $ UNWRAPPED_TOKEN_PROGRAM=TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+        $ WRAPPED_TOKEN_PROGRAM=TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+
+        $ spl-token-wrap unwrap $WRAPPED_TOKEN_ACCOUNT $ESCROW_ACCOUNT $UNWRAPPED_TOKEN_RECIPIENT 5 \
+            --transfer-authority $MULTISIG_ADDRESS \
+            --fee-payer $FEE_PAYER \
+            --unwrapped-mint $UNWRAPPED_MINT \
+            --wrapped-token-program $WRAPPED_TOKEN_PROGRAM \
+            --unwrapped-token-program $UNWRAPPED_TOKEN_PROGRAM \
+            --multisig-signer $SIGNER_1 \
+            --multisig-signer $SIGNER_2 \
+            --blockhash $BLOCKHASH \
+            --sign-only
+        ```
+
+        Now the broadcaster (and in this case, the fee payer as well) sends the last message with the `Pubkey=Signature` they have collected from Signer 1 and Signer 2:
+
+        ```console
+        $ SIGNER_1=DXj2Mn5FFQCZ5Hx5XsMX1UHGaGJtYYVLKfEYJng99JWS
+        $ SIGNATURE_1=DXj2Mn5FFQCZ5Hx5XsMX1UHGaGJtYYVLKfEYJng99JWS=4sQFJg338zP9bxX4Gw4KS58eXkpBB2pwjwo4szxCEVQZxrApzgYMN7riBYUnbvZPb84tsThPE1aHApiCCC9PSSP7
+        $ SIGNER_2=42uzyxAMNRFhvwd1jjFE7Fts693bDi7QKu1hTXxhmpAK
+        $ SIGNATURE_2=42uzyxAMNRFhvwd1jjFE7Fts693bDi7QKu1hTXxhmpAK=4UPUAV9USLFp8CKJ9u6gXhvUUFkpL2FTMbu3eJyyZ8DonjHJBEjUchuaM7j7tTaNWWF7zaRFfK5TkYvBytbV5vUR
+        $ FEE_PAYER="$HOME/.config/solana/id.json"
+
+        $ BLOCKHASH=E12VZaDq99G7Tg38Jr7U2VWRCmxjzWzsow8dPMhA47Rm
+        $ WRAPPED_TOKEN_ACCOUNT=3FzdqSEo32BcFgTUqWL5QakZGQBRX91yBAQFo1vGsCji
+        $ MULTISIG_ADDRESS=FFQvYvhaWnHeGsCMfixccUMdnXPgDrkG3KkGzpfBHFPb
+        $ UNWRAPPED_TOKEN_RECIPIENT=DKFjYKEFS4tkXjamwkuiGf555Lww3eRSWwNTbue9x14
+        $ UNWRAPPED_MINT=BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
+        $ ESCROW_ACCOUNT=4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3
+        $ UNWRAPPED_TOKEN_PROGRAM=TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+        $ WRAPPED_TOKEN_PROGRAM=TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+
+        $ spl-token-wrap unwrap $WRAPPED_TOKEN_ACCOUNT $ESCROW_ACCOUNT $UNWRAPPED_TOKEN_RECIPIENT 5 \
+            --transfer-authority $MULTISIG_ADDRESS \
+            --fee-payer $FEE_PAYER \
+            --unwrapped-mint $UNWRAPPED_MINT \
+            --wrapped-token-program $WRAPPED_TOKEN_PROGRAM \
+            --unwrapped-token-program $UNWRAPPED_TOKEN_PROGRAM \
+            --multisig-signer $SIGNER_1 \
+            --multisig-signer $SIGNER_2 \
+            --blockhash $BLOCKHASH \
+            --signer $SIGNATURE_1 \
+            --signer $SIGNATURE_2
+
+        Unwrapping 5 tokens from mint BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
+        Unwrapped token program: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+        Unwrapped mint address: BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
+        Recipient unwrapped token account: DKFjYKEFS4tkXjamwkuiGf555Lww3eRSWwNTbue9x14
+        Amount unwrapped: 5
+        Signers:
+          5s2gNCExGchZJcnDTHMubyRsjuNprhyzaNeSbc34sJSLt5AB8N6V6uBoAegnBF1zvm1s65CPtjVLNH7Eb2hFYLsM
+          eEcQFqdsDZzKL5CAm43kofVvnXCy7ZTQFm3RS6iYg4nckrSUzWZctebDYqcUNqtxxBgnLHyeDZiYMxNABAYYt2x
+          5fxWE9KQYFQHk2u9ienicDtuaRf9XWBvrmM48CBTxwtmpJXuxHxDzAYSM5atHe77rFTVsezbLCbuzirN1o5XdZTf
+        ```
+
+        Note all three needed signers in final broadcasted message.
+    </Tab>
+
+    <Tab value="JS">
+        ```typescript
+        import {
+            address,
+            createKeyPairSignerFromBytes,
+            createNoopSigner,
+            createSolanaRpc,
+            createSolanaRpcSubscriptions,
+            getBase58Decoder,
+        } from '@solana/kit';
+        import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+        import { findWrappedMintAuthorityPda, findWrappedMintPda } from '../generated';
+        import { multisigBroadcast } from '../utilities';
+        import { multisigOfflineSignUnwrap } from '../unwrap';
+        import { TOKEN_PROGRAM_ADDRESS } from '@solana-program/token';
+
+        // Replace these consts with your own
+        const PRIVATE_KEY_PAIR = new Uint8Array([
+            58, 188, 194, 176, 230, 94, 253, 2, 24, 163, 198, 177, 92, 79, 213, 87, 122, 150, 216, 175, 176,
+            159, 113, 144, 148, 82, 149, 249, 242, 255, 7, 1, 73, 203, 66, 98, 4, 2, 141, 236, 49, 10, 47,
+            188, 93, 170, 111, 125, 44, 155, 4, 124, 48, 18, 188, 30, 158, 78, 158, 34, 44, 100, 61, 21,
+        ]);
+
+        const MULTISIG_PUBKEY_SPL_TOKEN_2022 = address('B4zpMNng3noSj8tF8Sxu1FBMRcCRHHcLUypaquqKsiyn');
+        const SIGNER_A_KEYPAIR_BYTES = new Uint8Array([
+            77, 131, 162, 241, 28, 96, 241, 189, 123, 127, 7, 219, 35, 85, 12, 88, 193, 190, 213, 204, 199,
+            77, 116, 81, 115, 19, 74, 195, 204, 44, 131, 184, 153, 236, 12, 139, 32, 129, 221, 90, 26, 106,
+            30, 242, 54, 167, 146, 214, 199, 62, 64, 68, 227, 95, 113, 236, 13, 140, 113, 222, 221, 120, 169,
+            122,
+        ]);
+        const SIGNER_B_KEYPAIR_BYTES = new Uint8Array([
+            35, 38, 214, 119, 234, 198, 186, 126, 191, 31, 81, 169, 59, 193, 231, 194, 61, 89, 72, 115, 21,
+            160, 41, 85, 25, 35, 61, 134, 221, 207, 177, 245, 84, 168, 63, 96, 104, 70, 30, 42, 148, 66, 148,
+            229, 191, 138, 23, 59, 149, 133, 213, 104, 150, 140, 91, 158, 35, 176, 5, 99, 14, 68, 184, 16,
+        ]);
+
+        const WRAPPED_MINT_ADDRESS = address('B8HbxGU4npjgjMX5xJFR2FYkgvAHdZqyVb8MyFvdsuNM');
+        const UNWRAPPED_MINT_ADDRESS = address('E8r9ixwg7QYr6xCh4tSdHErZ6CUxQhVGHqF5bRoZXyyV');
+        const UNWRAPPED_TOKEN_ACCOUNT = address('DGNyuKAWP3susy6XMbVsYHy2AMrrKmh8pXM3WpQUeyL2'); // Must be owned by multisig account
+        const ESCROW = address('4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3');
+        const RECIPIENT = address('HKHfad5Rx7Vv1iWzPiQhx3cnXpbVfDonYRRo1e16x5Bt');
+        const AMOUNT_TO_WRAP = 100n;
+
+        const main = async () => {
+            const rpc = createSolanaRpc('http://127.0.0.1:8899');
+            const rpcSubscriptions = createSolanaRpcSubscriptions('ws://127.0.0.1:8900');
+            const payer = await createKeyPairSignerFromBytes(PRIVATE_KEY_PAIR);
+
+            const signerA = await createKeyPairSignerFromBytes(SIGNER_A_KEYPAIR_BYTES);
+            const signerB = await createKeyPairSignerFromBytes(SIGNER_B_KEYPAIR_BYTES);
+
+            const [wrappedMint] = await findWrappedMintPda({
+                unwrappedMint: UNWRAPPED_MINT_ADDRESS,
+                wrappedTokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+            });
+
+            const [wrappedMintAuthority] = await findWrappedMintAuthorityPda({
+                wrappedMint: WRAPPED_MINT_ADDRESS,
+            });
+
+            const { value: unwrapBlockhash } = await rpc.getLatestBlockhash().send();
+
+            const unwrapSignatureMapA = await multisigOfflineSignUnwrap({
+                payer: payer.address,
+                unwrappedEscrow: ESCROW,
+                wrappedTokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+                amount: AMOUNT_TO_WRAP,
+                unwrappedMint: UNWRAPPED_MINT_ADDRESS,
+                wrappedTokenAccount: RECIPIENT,
+                recipientUnwrappedToken: UNWRAPPED_TOKEN_ACCOUNT,
+                transferAuthority: MULTISIG_PUBKEY_SPL_TOKEN_2022,
+                wrappedMint,
+                wrappedMintAuthority,
+                unwrappedTokenProgram: TOKEN_PROGRAM_ADDRESS,
+                multiSigners: [signerA, createNoopSigner(signerB.address)],
+                blockhash: unwrapBlockhash,
+            });
+
+            const unwrapSignatureMapB = await multisigOfflineSignUnwrap({
+                payer: payer.address,
+                unwrappedEscrow: ESCROW,
+                wrappedTokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+                amount: AMOUNT_TO_WRAP,
+                unwrappedMint: UNWRAPPED_MINT_ADDRESS,
+                wrappedTokenAccount: RECIPIENT,
+                recipientUnwrappedToken: UNWRAPPED_TOKEN_ACCOUNT,
+                transferAuthority: MULTISIG_PUBKEY_SPL_TOKEN_2022,
+                wrappedMint,
+                wrappedMintAuthority,
+                unwrappedTokenProgram: TOKEN_PROGRAM_ADDRESS,
+                multiSigners: [createNoopSigner(signerA.address), signerB],
+                blockhash: unwrapBlockhash,
+            });
+
+            const unwrapSignatureMapC = await multisigOfflineSignUnwrap({
+                payer: payer,
+                unwrappedEscrow: ESCROW,
+                wrappedTokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+                amount: AMOUNT_TO_WRAP,
+                unwrappedMint: UNWRAPPED_MINT_ADDRESS,
+                wrappedTokenAccount: RECIPIENT,
+                recipientUnwrappedToken: UNWRAPPED_TOKEN_ACCOUNT,
+                transferAuthority: MULTISIG_PUBKEY_SPL_TOKEN_2022,
+                wrappedMint,
+                wrappedMintAuthority,
+                unwrappedTokenProgram: TOKEN_PROGRAM_ADDRESS,
+                multiSigners: [createNoopSigner(signerA.address), createNoopSigner(signerB.address)],
+                blockhash: unwrapBlockhash,
+            });
+
+            const unwrapTx = await multisigBroadcast({
+                rpc,
+                rpcSubscriptions,
+                signedTxs: [unwrapSignatureMapA, unwrapSignatureMapB, unwrapSignatureMapC],
+                blockhash: unwrapBlockhash,
+            });
+
+            console.log('======== Multisig Unwrap Successful ========');
+                for (const [pubkey, signature] of Object.entries(unwrapTx.signatures)) {
+                if (signature) {
+                    const base58Sig = getBase58Decoder().decode(signature);
+                    console.log(`pubkey: ${pubkey}`);
+                    console.log(`signature: ${base58Sig}`);
+                    console.log('-----');
+                }
+            }
+        };
+
+        void main();
+        ```
+    </Tab>
+</Tabs>
