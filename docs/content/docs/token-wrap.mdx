@@ -22,22 +22,21 @@ It supports three primary operations:
 1. **`CreateMint`:** This operation initializes a new wrapped token mint and its associated backpointer account. Note,
 the caller must pre-fund this account with lamports. This is to avoid requiring writer+signer privileges on this
 instruction.
- * **Wrapped Mint:** An SPL Token or SPL Token 2022 mint account is created. The address of this mint is a
+     * **Wrapped Mint:** An SPL Token or SPL Token 2022 mint account is created. The address of this mint is a
 PDA derived from the *unwrapped* token's mint address and the *wrapped* token program ID. This ensures a unique,
 deterministic relationship between the wrapped and unwrapped tokens. The wrapped mint's authority is also a PDA,
 controlled by the Token Wrap program.
- * **Backpointer:** An account (also a PDA, derived from the *wrapped* mint address) is created to store the
+     * **Backpointer:** An account (also a PDA, derived from the *wrapped* mint address) is created to store the
 address of the original *unwrapped* token mint. This allows anyone to easily determine the unwrapped token
 corresponding to a wrapped token, facilitating unwrapping.
 
 2. **`Wrap`:**  This operation accepts deposits of unwrapped tokens and mints wrapped tokens.
- * Unwrapped tokens are transferred from the user's account to an escrow account. Any unwrapped token account whose
-owner is a PDA controlled by the Token Wrap program can be used.
- * An equivalent amount of wrapped tokens is minted to the user's wrapped token account.
+     * Unwrapped tokens are transferred from the user's account to an escrow account owned by the wrapped mint authority (different for every mint). Any unwrapped token account whose owner is a PDA controlled by the Token Wrap program can be used.
+     * An equivalent amount of wrapped tokens is minted to the user's wrapped token account.
 
 3. **`Unwrap`:** This operation burns wrapped tokens and releases unwrapped token deposits.
- * Wrapped tokens are burned from the user's wrapped token account.
- * An equivalent amount of unwrapped tokens is transferred from the escrow account to the user's unwrapped token
+     * Wrapped tokens are burned from the user's wrapped token account.
+     * An equivalent amount of unwrapped tokens is transferred from the escrow account to the user's unwrapped token
 account.
 
 The 1:1 relationship between wrapped and unwrapped tokens is maintained through the escrow mechanism, ensuring that
@@ -117,10 +116,9 @@ To create a new wrapped token mint, first you need to identify the unwrapped tok
     <Tab value="CLI">
         ```console
         $ UNWRAPPED_MINT_ADDRESS=BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
-        $ UNWRAPPED_TOKEN_PROGRAM=TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
         $ WRAPPED_TOKEN_PROGRAM=TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
 
-        $ spl-token-wrap create-mint $UNWRAPPED_MINT_ADDRESS $UNWRAPPED_TOKEN_PROGRAM $WRAPPED_TOKEN_PROGRAM
+        $ spl-token-wrap create-mint $UNWRAPPED_MINT_ADDRESS $WRAPPED_TOKEN_PROGRAM
 
         Creating wrapped mint for BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
         Funding wrapped_mint_account B8HbxGU4npjgjMX5xJFR2FYkgvAHdZqyVb8MyFvdsuNM with 1461600 lamports for rent
@@ -146,7 +144,7 @@ To create a new wrapped token mint, first you need to identify the unwrapped tok
             signTransactionMessageWithSigners,
         } from '@solana/kit';
         import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
-        import { createMintTx } from '../create-mint';
+        import { createMintTx } from '@solana-program/token-wrap';
 
         // Replace these consts with your own
         const PRIVATE_KEY_PAIR = new Uint8Array([242, 30, 38, 177, 152, 71, ... ]);
@@ -236,7 +234,7 @@ To interact with wrapped tokens, you need to know the PDAs (Program Derived Addr
 
 ### Create escrow account
 
-Before wrapping tokens, you need to create an account to hold the unwrapped tokens. It's mint authority must be the correct PDA (see `find-pdas` command above). There is also a helper to create this account:
+Before wrapping tokens, you need to create an account to hold the unwrapped tokens. The escrow account's owner must be the correct PDA (see `find-pdas` command above). There is also a helper to create this account:
 
 <Tabs groupId="language" items={['CLI', 'JS']}>
     <Tab value="CLI">
@@ -265,7 +263,7 @@ Before wrapping tokens, you need to create an account to hold the unwrapped toke
             signTransactionMessageWithSigners,
         } from '@solana/kit';
         import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
-        import { createEscrowAccountTx } from '../utilities';
+        import { createEscrowAccountTx } from '@solana-program/token-wrap';
 
         // Replace these consts with your own
         const PRIVATE_KEY_PAIR = new Uint8Array([242, 30, 38, 177, 152, 71, ... ]);
@@ -342,7 +340,7 @@ Escrows unwrapped tokens and mints wrapped tokens to recipient account.
             signTransactionMessageWithSigners,
         } from '@solana/kit';
         import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
-        import { singleSignerWrapTx } from '../wrap';
+        import { singleSignerWrapTx } from '@solana-program/token-wrap';
 
         // Replace these consts with your own
         const PRIVATE_KEY_PAIR = new Uint8Array([242, 30, 38, 177, 152, 71, ... ]);
@@ -386,14 +384,14 @@ Escrows unwrapped tokens and mints wrapped tokens to recipient account.
     </Tab>
 </Tabs>
 
-### Wrap tokens (multisig)
+### Wrap tokens (SPL Token Multisig)
 
-An example wrapping tokens whose origin is a token account owned by a multisig.
+An example wrapping tokens whose origin is a token account owned by an SPL Token multisig.
 
 <Tabs groupId="language" items={['CLI', 'JS']}>
     <Tab value="CLI">
         There are two parts to this. The first is having the multisig members sign the message independently.
-        The second is the broadcaster collecting those signatures and making a final call.
+        The second is the broadcaster collecting those signatures and sending the transaction to the network.
 
         Let's pretend we have a 2 of 3 multisig and the broadcaster will be the fee payer. Here's what that would look like:
 
@@ -534,9 +532,11 @@ An example wrapping tokens whose origin is a token account owned by a multisig.
             sendAndConfirmTransactionFactory,
         } from '@solana/kit';
         import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
-        import { findWrappedMintAuthorityPda } from '../generated';
-        import { multisigOfflineSignWrapTx } from '../wrap';
-        import { combinedMultisigTx, getOwnerFromAccount } from '../utilities';
+        import {
+            findWrappedMintAuthorityPda,
+            multisigOfflineSignWrapTx,
+            combinedMultisigTx,
+        } from '@solana-program/token-wrap';
 
         // Replace these consts with your own
         const PAYER_KEYPAIR_BYTES = new Uint8Array([242, 30, 38, 177, 152, 71, ... ]);
@@ -546,6 +546,7 @@ An example wrapping tokens whose origin is a token account owned by a multisig.
         const WRAPPED_MINT_ADDRESS = address('B8HbxGU4npjgjMX5xJFR2FYkgvAHdZqyVb8MyFvdsuNM');
         const UNWRAPPED_MINT_ADDRESS = address('E8r9ixwg7QYr6xCh4tSdHErZ6CUxQhVGHqF5bRoZXyyV');
         const UNWRAPPED_TOKEN_ACCOUNT = address('DGNyuKAWP3susy6XMbVsYHy2AMrrKmh8pXM3WpQUeyL2'); // Must be owned by multisig account
+        const UNWRAPPED_TOKEN_PROGRAM = address('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
         const ESCROW = address('4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3');
         const RECIPIENT = address('HKHfad5Rx7Vv1iWzPiQhx3cnXpbVfDonYRRo1e16x5Bt');
         const AMOUNT_TO_WRAP = 100n;
@@ -558,7 +559,6 @@ An example wrapping tokens whose origin is a token account owned by a multisig.
             const payer = await createKeyPairSignerFromBytes(PAYER_KEYPAIR_BYTES);
             const { value: blockhash } = await rpc.getLatestBlockhash().send();
 
-            const unwrappedTokenProgram = await getOwnerFromAccount(rpc, UNWRAPPED_TOKEN_ACCOUNT);
             const [wrappedMintAuthority] = await findWrappedMintAuthorityPda({ wrappedMint: WRAPPED_MINT_ADDRESS });
 
             const signerA = await createKeyPairSignerFromBytes(SIGNER_A_KEYPAIR_BYTES);
@@ -577,7 +577,7 @@ An example wrapping tokens whose origin is a token account owned by a multisig.
                 transferAuthority: MULTISIG_SPL_TOKEN,
                 wrappedMint: WRAPPED_MINT_ADDRESS,
                 wrappedMintAuthority,
-                unwrappedTokenProgram,
+                unwrappedTokenProgram: UNWRAPPED_TOKEN_PROGRAM,
                 multiSigners: [signerA, createNoopSigner(signerB.address)],
                 blockhash,
             });
@@ -594,7 +594,7 @@ An example wrapping tokens whose origin is a token account owned by a multisig.
                 transferAuthority: MULTISIG_SPL_TOKEN,
                 wrappedMint: WRAPPED_MINT_ADDRESS,
                 wrappedMintAuthority,
-                unwrappedTokenProgram,
+                unwrappedTokenProgram: UNWRAPPED_TOKEN_PROGRAM,
                 multiSigners: [createNoopSigner(signerA.address), signerB],
                 blockhash,
             });
@@ -611,7 +611,7 @@ An example wrapping tokens whose origin is a token account owned by a multisig.
                 transferAuthority: MULTISIG_SPL_TOKEN,
                 wrappedMint: WRAPPED_MINT_ADDRESS,
                 wrappedMintAuthority,
-                unwrappedTokenProgram,
+                unwrappedTokenProgram: UNWRAPPED_TOKEN_PROGRAM,
                 multiSigners: [createNoopSigner(signerA.address), createNoopSigner(signerB.address)],
                 blockhash,
             });
@@ -674,7 +674,7 @@ Burns wrapped tokens and releases unwrapped tokens from escrow.
             sendAndConfirmTransactionFactory,
             signTransactionMessageWithSigners,
         } from '@solana/kit';
-        import { singleSignerUnwrapTx } from '../unwrap';
+        import { singleSignerUnwrapTx } from '@solana-program/token-wrap';
 
         // Replace these consts with your own
         const PRIVATE_KEY_PAIR = new Uint8Array([242, 30, 38, 177, 152, 71, ... ]);
@@ -716,14 +716,14 @@ Burns wrapped tokens and releases unwrapped tokens from escrow.
     </Tab>
 </Tabs>
 
-### Unwrap tokens (multisig)
+### Unwrap tokens (SPL Token Multisig)
 
-An example unwrapping tokens whose origin is a token account owned by a multisig.
+An example unwrapping tokens whose origin is a token account owned by an SPL Token multisig.
 
 <Tabs groupId="language" items={['CLI', 'JS']}>
     <Tab value="CLI">
         There are two parts to this. The first is having the multisig members sign the message independently.
-        The second is the broadcaster collecting those signatures and making a final call.
+        The second is the broadcaster collecting those signatures and sending the transaction to the network.
 
         Let's pretend we have a 2 of 3 multisig and the broadcaster will be the fee payer. Here's what that would look like:
 
@@ -850,9 +850,11 @@ An example unwrapping tokens whose origin is a token account owned by a multisig
             sendAndConfirmTransactionFactory,
         } from '@solana/kit';
         import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
-        import { findWrappedMintAuthorityPda } from '../generated';
-        import { combinedMultisigTx, getOwnerFromAccount } from '../utilities';
-        import { multisigOfflineSignUnwrap } from '../unwrap';
+        import {
+            findWrappedMintAuthorityPda,
+            combinedMultisigTx,
+            multisigOfflineSignUnwrap
+        } from '@solana-program/token-wrap';
 
         // Replace these consts with your own
         const PAYER_KEYPAIR_BYTES = new Uint8Array([242, 30, 38, 177, 152, 71, ... ]);
@@ -862,6 +864,7 @@ An example unwrapping tokens whose origin is a token account owned by a multisig
         const WRAPPED_MINT_ADDRESS = address('B8HbxGU4npjgjMX5xJFR2FYkgvAHdZqyVb8MyFvdsuNM');
         const UNWRAPPED_MINT_ADDRESS = address('E8r9ixwg7QYr6xCh4tSdHErZ6CUxQhVGHqF5bRoZXyyV');
         const UNWRAPPED_TOKEN_ACCOUNT = address('DGNyuKAWP3susy6XMbVsYHy2AMrrKmh8pXM3WpQUeyL2'); // Must be owned by multisig account
+        const UNWRAPPED_TOKEN_PROGRAM = address('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
         const ESCROW = address('4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3');
         const RECIPIENT = address('HKHfad5Rx7Vv1iWzPiQhx3cnXpbVfDonYRRo1e16x5Bt');
         const AMOUNT_TO_WRAP = 100n;
@@ -874,7 +877,6 @@ An example unwrapping tokens whose origin is a token account owned by a multisig
             const payer = await createKeyPairSignerFromBytes(PAYER_KEYPAIR_BYTES);
             const { value: blockhash } = await rpc.getLatestBlockhash().send();
 
-            const unwrappedTokenProgram = await getOwnerFromAccount(rpc, UNWRAPPED_TOKEN_ACCOUNT);
             const [wrappedMintAuthority] = await findWrappedMintAuthorityPda({ wrappedMint: WRAPPED_MINT_ADDRESS });
 
             const signerA = await createKeyPairSignerFromBytes(SIGNER_A_KEYPAIR_BYTES);
@@ -893,7 +895,7 @@ An example unwrapping tokens whose origin is a token account owned by a multisig
                 transferAuthority: MULTISIG_SPL_TOKEN_2022,
                 wrappedMint: WRAPPED_MINT_ADDRESS,
                 wrappedMintAuthority,
-                unwrappedTokenProgram,
+                unwrappedTokenProgram: UNWRAPPED_TOKEN_PROGRAM,
                 multiSigners: [signerA, createNoopSigner(signerB.address)],
                 blockhash: unwrapBlockhash,
             });
@@ -910,7 +912,7 @@ An example unwrapping tokens whose origin is a token account owned by a multisig
                 transferAuthority: MULTISIG_SPL_TOKEN_2022,
                 wrappedMint: WRAPPED_MINT_ADDRESS,
                 wrappedMintAuthority,
-                unwrappedTokenProgram,
+                unwrappedTokenProgram: UNWRAPPED_TOKEN_PROGRAM,
                 multiSigners: [createNoopSigner(signerA.address), signerB],
                 blockhash: unwrapBlockhash,
             });
@@ -927,7 +929,7 @@ An example unwrapping tokens whose origin is a token account owned by a multisig
                 transferAuthority: MULTISIG_SPL_TOKEN_2022,
                 wrappedMint: WRAPPED_MINT_ADDRESS,
                 wrappedMintAuthority,
-                unwrappedTokenProgram,
+                unwrappedTokenProgram: UNWRAPPED_TOKEN_PROGRAM,
                 multiSigners: [createNoopSigner(signerA.address), createNoopSigner(signerB.address)],
                 blockhash: unwrapBlockhash,
             });
