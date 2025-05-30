@@ -31,7 +31,7 @@ address of the original *unwrapped* token mint. This allows anyone to easily det
 corresponding to a wrapped token, facilitating unwrapping.
 
 2. **`Wrap`:**  This operation accepts deposits of unwrapped tokens and mints wrapped tokens.
-     * Unwrapped tokens are transferred from the user's account to an escrow account owned by the wrapped mint authority (different for every mint). Any unwrapped token account whose owner is a PDA controlled by the Token Wrap program can be used.
+     * Unwrapped tokens are transferred from the user's account to a specific escrow Associated Token Account (ATA). This ATA is for the unwrapped mint, and its authority is a Program Derived Address (PDA) controlled by the Token Wrap program (unique for each wrapped mint).
      * An equivalent amount of wrapped tokens is minted to the user's wrapped token account.
 
 3. **`Unwrap`:** This operation burns wrapped tokens and releases unwrapped token deposits.
@@ -199,6 +199,7 @@ To interact with wrapped tokens, you need to know the PDAs (Program Derived Addr
         Wrapped mint address: B8HbxGU4npjgjMX5xJFR2FYkgvAHdZqyVb8MyFvdsuNM
         Wrapped mint authority: 8WdYPmtq8c6ZfmHMZUwCQL2E8qVHEV8rG9MXkyax3joR
         Wrapped backpointer address: CNjr898vsBdzWxrJApMSAQac4A7o7qLRcSseTb56X7C9
+        Unwrapped escrow address: QrzXtFZedQmg8AGu6AnUkPgmsLnR9ErsjNRLdCrRVWw
         ```
     </Tab>
 
@@ -210,7 +211,8 @@ To interact with wrapped tokens, you need to know the PDAs (Program Derived Addr
             findWrappedMintAuthorityPda,
             findWrappedMintPda,
         } from '@solana-program/token-wrap';
-        import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+        import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+        import { TOKEN_PROGRAM_ADDRESS } from '@solana-program/token';
 
         const UNWRAPPED_MINT_ADDRESS = address('5StBUZ2w8ShDN9iF7NkGpDNNH2wv9jK7zhArmVRpwrCt');
 
@@ -222,19 +224,28 @@ To interact with wrapped tokens, you need to know the PDAs (Program Derived Addr
             const [backpointer] = await findBackpointerPda({ wrappedMint });
             const [wrappedMintAuthority] = await findWrappedMintAuthorityPda({ wrappedMint });
 
+            const [escrowAccount] = await findAssociatedTokenPda({
+                owner: wrappedMintAuthority,
+                mint: UNWRAPPED_MINT_ADDRESS,
+                tokenProgram: TOKEN_PROGRAM_ADDRESS, // unwrapped token program address
+            });
+
             console.log('WRAPPED_MINT_ADDRESS', wrappedMint);
             console.log('BACKPOINTER', backpointer);
             console.log('WRAPPED_MINT_AUTHORITY', wrappedMintAuthority);
+            console.log('ESCROW_ACCOUNT', escrowAccount);
         }
 
         void main();
+
         ```
     </Tab>
 </Tabs>
 
 ### Create escrow account
 
-Before wrapping tokens, you need to create an account to hold the unwrapped tokens. The escrow account's owner must be the correct PDA (see `find-pdas` command above). There is also a helper to create this account:
+Before wrapping tokens, if you are the first to do so for this wrapped mint, you may need to initialize the escrow account to custody the unwrapped tokens.
+The account must be an ATA whose owner is the mint authority PDA (see `find-pdas` command above). There is also a helper to initialize this account:
 
 <Tabs groupId="language" items={['CLI', 'JS']}>
     <Tab value="CLI">
@@ -284,10 +295,12 @@ Before wrapping tokens, you need to create an account to hold the unwrapped toke
                 unwrappedMint: UNWRAPPED_MINT_ADDRESS,
                 wrappedTokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
             });
-            const signedCreateEscrowTx = await signTransactionMessageWithSigners(createEscrowMessage.tx);
-            await sendAndConfirm(signedCreateEscrowTx, { commitment: 'confirmed' });
+            if (!createEscrowMessage.exists) {
+                const signedCreateEscrowTx = await signTransactionMessageWithSigners(createEscrowMessage.tx);
+                await sendAndConfirm(signedCreateEscrowTx, { commitment: 'confirmed' });
+            }
 
-            console.log('ESCROW_ADDRESS', createEscrowMessage.keyPair.address);
+            console.log('ESCROW_ADDRESS', createEscrowMessage.address);
         }
 
         void main();
@@ -304,10 +317,9 @@ Escrows unwrapped tokens and mints wrapped tokens to recipient account.
     <Tab value="CLI">
         ```console
         $ UNWRAPPED_TOKEN_ACCOUNT=DKFjYKEFS4tkXjamwkuiGf555Lww3eRSWwNTbue9x14
-        $ ESCROW_ACCOUNT=4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3
         $ WRAPPED_TOKEN_PROGRAM=TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
 
-        $ spl-token-wrap wrap $UNWRAPPED_TOKEN_ACCOUNT $ESCROW_ACCOUNT $WRAPPED_TOKEN_PROGRAM 100
+        $ spl-token-wrap wrap $UNWRAPPED_TOKEN_ACCOUNT $WRAPPED_TOKEN_PROGRAM 100
 
         Wrapping 100 tokens from mint BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
         Unwrapped mint address: BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
@@ -323,7 +335,7 @@ Escrows unwrapped tokens and mints wrapped tokens to recipient account.
         You can specify a recipient token account with the `--recipient-token-account` option. If not provided, the associated token account of the fee payer will be used or created if it doesn't exist.
 
         ```console
-        $ spl-token-wrap wrap $UNWRAPPED_TOKEN_ACCOUNT $ESCROW_ACCOUNT $WRAPPED_TOKEN_PROGRAM 100 \
+        $ spl-token-wrap wrap $UNWRAPPED_TOKEN_ACCOUNT $WRAPPED_TOKEN_PROGRAM 100 \
             --recipient-token-account $RECIPIENT_WRAPPED_TOKEN_ACCOUNT
         ```
     </Tab>
@@ -344,7 +356,6 @@ Escrows unwrapped tokens and mints wrapped tokens to recipient account.
 
         // Replace these consts with your own
         const PRIVATE_KEY_PAIR = new Uint8Array([242, 30, 38, 177, 152, 71, ... ]);
-        const ESCROW_ACCOUNT = address('4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3');
         const UNWRAPPED_TOKEN_ACCOUNT = address('CbuRmvG3frMoPFnsKfC2t8jTUHFjtnrKZBt2aqdqH4PG');
         const RECIPIENT = address('HKHfad5Rx7Vv1iWzPiQhx3cnXpbVfDonYRRo1e16x5Bt');
         const AMOUNT_TO_WRAP = 100n;
@@ -362,7 +373,6 @@ Escrows unwrapped tokens and mints wrapped tokens to recipient account.
                 blockhash,
                 payer,
                 unwrappedTokenAccount: UNWRAPPED_TOKEN_ACCOUNT,
-                escrowAccount: ESCROW_ACCOUNT,
                 wrappedTokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
                 recipientWrappedTokenAccount: RECIPIENT,
                 amount: AMOUNT_TO_WRAP,
@@ -416,11 +426,10 @@ An example wrapping tokens whose origin is a token account owned by an SPL Token
         $ MULTISIG_ADDRESS=mgnqjedikMKaRtS5wrhVttuA12JaPXiqY619Gfef5eh
         $ RECIPIENT_ACCOUNT=HKHfad5Rx7Vv1iWzPiQhx3cnXpbVfDonYRRo1e16x5Bt
         $ UNWRAPPED_MINT=BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
-        $ ESCROW_ACCOUNT=4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3
         $ UNWRAPPED_TOKEN_PROGRAM=TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
         $ WRAPPED_TOKEN_PROGRAM=TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
 
-        $ spl-token-wrap wrap $UNWRAPPED_TOKEN_ACCOUNT $ESCROW_ACCOUNT $WRAPPED_TOKEN_PROGRAM 23 \
+        $ spl-token-wrap wrap $UNWRAPPED_TOKEN_ACCOUNT $WRAPPED_TOKEN_PROGRAM 23 \
             --transfer-authority $MULTISIG_ADDRESS \
             --recipient-token-account $RECIPIENT_ACCOUNT \
             --unwrapped-mint $UNWRAPPED_MINT \
@@ -451,11 +460,10 @@ An example wrapping tokens whose origin is a token account owned by an SPL Token
         $ MULTISIG_ADDRESS=mgnqjedikMKaRtS5wrhVttuA12JaPXiqY619Gfef5eh
         $ RECIPIENT_ACCOUNT=HKHfad5Rx7Vv1iWzPiQhx3cnXpbVfDonYRRo1e16x5Bt
         $ UNWRAPPED_MINT=BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
-        $ ESCROW_ACCOUNT=4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3
         $ UNWRAPPED_TOKEN_PROGRAM=TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
         $ WRAPPED_TOKEN_PROGRAM=TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
 
-        $ spl-token-wrap wrap $UNWRAPPED_TOKEN_ACCOUNT $ESCROW_ACCOUNT $WRAPPED_TOKEN_PROGRAM 23 \
+        $ spl-token-wrap wrap $UNWRAPPED_TOKEN_ACCOUNT $WRAPPED_TOKEN_PROGRAM 23 \
             --transfer-authority $MULTISIG_ADDRESS \
             --recipient-token-account $RECIPIENT_ACCOUNT \
             --unwrapped-mint $UNWRAPPED_MINT \
@@ -487,11 +495,10 @@ An example wrapping tokens whose origin is a token account owned by an SPL Token
         $ MULTISIG_ADDRESS=mgnqjedikMKaRtS5wrhVttuA12JaPXiqY619Gfef5eh
         $ RECIPIENT_ACCOUNT=HKHfad5Rx7Vv1iWzPiQhx3cnXpbVfDonYRRo1e16x5Bt
         $ UNWRAPPED_MINT=BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
-        $ ESCROW_ACCOUNT=4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3
         $ UNWRAPPED_TOKEN_PROGRAM=TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
         $ WRAPPED_TOKEN_PROGRAM=TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
 
-        $ spl-token-wrap wrap $UNWRAPPED_TOKEN_ACCOUNT $ESCROW_ACCOUNT $WRAPPED_TOKEN_PROGRAM 23 \
+        $ spl-token-wrap wrap $UNWRAPPED_TOKEN_ACCOUNT $WRAPPED_TOKEN_PROGRAM 23 \
             --transfer-authority $MULTISIG_ADDRESS \
             --recipient-token-account $RECIPIENT_ACCOUNT \
             --unwrapped-mint $UNWRAPPED_MINT \
@@ -547,7 +554,6 @@ An example wrapping tokens whose origin is a token account owned by an SPL Token
         const UNWRAPPED_MINT_ADDRESS = address('E8r9ixwg7QYr6xCh4tSdHErZ6CUxQhVGHqF5bRoZXyyV');
         const UNWRAPPED_TOKEN_ACCOUNT = address('DGNyuKAWP3susy6XMbVsYHy2AMrrKmh8pXM3WpQUeyL2'); // Must be owned by multisig account
         const UNWRAPPED_TOKEN_PROGRAM = address('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
-        const ESCROW = address('4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3');
         const RECIPIENT = address('HKHfad5Rx7Vv1iWzPiQhx3cnXpbVfDonYRRo1e16x5Bt');
         const AMOUNT_TO_WRAP = 100n;
 
@@ -566,10 +572,9 @@ An example wrapping tokens whose origin is a token account owned by an SPL Token
 
             // Two signers and the payer sign the transaction independently
 
-            const wrapTxA = multisigOfflineSignWrapTx({
+            const wrapTxA = await multisigOfflineSignWrapTx({
                 payer: createNoopSigner(payer.address),
                 unwrappedTokenAccount: UNWRAPPED_TOKEN_ACCOUNT,
-                escrowAccount: ESCROW,
                 wrappedTokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
                 amount: AMOUNT_TO_WRAP,
                 unwrappedMint: UNWRAPPED_MINT_ADDRESS,
@@ -583,10 +588,9 @@ An example wrapping tokens whose origin is a token account owned by an SPL Token
             });
             const signedWrapTxA = await partiallySignTransactionMessageWithSigners(wrapTxA);
 
-            const wrapTxB = multisigOfflineSignWrapTx({
+            const wrapTxB = await multisigOfflineSignWrapTx({
                 payer: createNoopSigner(payer.address),
                 unwrappedTokenAccount: UNWRAPPED_TOKEN_ACCOUNT,
-                escrowAccount: ESCROW,
                 wrappedTokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
                 amount: AMOUNT_TO_WRAP,
                 unwrappedMint: UNWRAPPED_MINT_ADDRESS,
@@ -600,10 +604,9 @@ An example wrapping tokens whose origin is a token account owned by an SPL Token
             });
             const signedWrapTxB = await partiallySignTransactionMessageWithSigners(wrapTxB);
 
-            const wrapTxC = multisigOfflineSignWrapTx({
+            const wrapTxC = await multisigOfflineSignWrapTx({
                 payer,
                 unwrappedTokenAccount: UNWRAPPED_TOKEN_ACCOUNT,
-                escrowAccount: ESCROW,
                 wrappedTokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
                 amount: AMOUNT_TO_WRAP,
                 unwrappedMint: UNWRAPPED_MINT_ADDRESS,
@@ -647,11 +650,10 @@ Burns wrapped tokens and releases unwrapped tokens from escrow.
 <Tabs groupId="language" items={['CLI', 'JS']}>
     <Tab value="CLI">
         ```console
-        $ ESCROW_ACCOUNT=4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3
         $ WRAPPED_TOKEN_ACCOUNT=HKHfad5Rx7Vv1iWzPiQhx3cnXpbVfDonYRRo1e16x5Bt
         $ UNWRAPPED_TOKEN_RECIPIENT=DKFjYKEFS4tkXjamwkuiGf555Lww3eRSWwNTbue9x14
 
-        $ spl-token-wrap unwrap $WRAPPED_TOKEN_ACCOUNT $ESCROW_ACCOUNT $UNWRAPPED_TOKEN_RECIPIENT 50
+        $ spl-token-wrap unwrap $WRAPPED_TOKEN_ACCOUNT $UNWRAPPED_TOKEN_RECIPIENT 50
 
         Unwrapping 50 tokens from mint BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
         Unwrapped token program: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
@@ -679,7 +681,6 @@ Burns wrapped tokens and releases unwrapped tokens from escrow.
         // Replace these consts with your own
         const PRIVATE_KEY_PAIR = new Uint8Array([242, 30, 38, 177, 152, 71, ... ]);
         const WRAPPED_TOKEN_ACCOUNT = address('HKHfad5Rx7Vv1iWzPiQhx3cnXpbVfDonYRRo1e16x5Bt');
-        const ESCROW = address('4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3');
         const RECIPIENT = address('DKFjYKEFS4tkXjamwkuiGf555Lww3eRSWwNTbue9x14');
         const AMOUNT_TO_WRAP = 100n;
 
@@ -696,7 +697,6 @@ Burns wrapped tokens and releases unwrapped tokens from escrow.
                 blockhash,
                 payer,
                 wrappedTokenAccount: WRAPPED_TOKEN_ACCOUNT,
-                unwrappedEscrow: ESCROW,
                 amount: AMOUNT_TO_WRAP,
                 recipientUnwrappedToken: RECIPIENT,
             });
@@ -748,11 +748,10 @@ An example unwrapping tokens whose origin is a token account owned by an SPL Tok
         $ MULTISIG_ADDRESS=FFQvYvhaWnHeGsCMfixccUMdnXPgDrkG3KkGzpfBHFPb # note this should have the same program-id as wrapped token account
         $ UNWRAPPED_TOKEN_RECIPIENT=DKFjYKEFS4tkXjamwkuiGf555Lww3eRSWwNTbue9x14
         $ UNWRAPPED_MINT=BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
-        $ ESCROW_ACCOUNT=4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3
         $ UNWRAPPED_TOKEN_PROGRAM=TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
         $ WRAPPED_TOKEN_PROGRAM=TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
 
-        $ spl-token-wrap unwrap $WRAPPED_TOKEN_ACCOUNT $ESCROW_ACCOUNT $UNWRAPPED_TOKEN_RECIPIENT 5 \
+        $ spl-token-wrap unwrap $WRAPPED_TOKEN_ACCOUNT $UNWRAPPED_TOKEN_RECIPIENT 5 \
             --transfer-authority $MULTISIG_ADDRESS \
             --fee-payer $FEE_PAYER \
             --unwrapped-mint $UNWRAPPED_MINT \
@@ -777,11 +776,10 @@ An example unwrapping tokens whose origin is a token account owned by an SPL Tok
         $ MULTISIG_ADDRESS=FFQvYvhaWnHeGsCMfixccUMdnXPgDrkG3KkGzpfBHFPb
         $ UNWRAPPED_TOKEN_RECIPIENT=DKFjYKEFS4tkXjamwkuiGf555Lww3eRSWwNTbue9x14
         $ UNWRAPPED_MINT=BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
-        $ ESCROW_ACCOUNT=4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3
         $ UNWRAPPED_TOKEN_PROGRAM=TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
         $ WRAPPED_TOKEN_PROGRAM=TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
 
-        $ spl-token-wrap unwrap $WRAPPED_TOKEN_ACCOUNT $ESCROW_ACCOUNT $UNWRAPPED_TOKEN_RECIPIENT 5 \
+        $ spl-token-wrap unwrap $WRAPPED_TOKEN_ACCOUNT $UNWRAPPED_TOKEN_RECIPIENT 5 \
             --transfer-authority $MULTISIG_ADDRESS \
             --fee-payer $FEE_PAYER \
             --unwrapped-mint $UNWRAPPED_MINT \
@@ -807,11 +805,10 @@ An example unwrapping tokens whose origin is a token account owned by an SPL Tok
         $ MULTISIG_ADDRESS=FFQvYvhaWnHeGsCMfixccUMdnXPgDrkG3KkGzpfBHFPb
         $ UNWRAPPED_TOKEN_RECIPIENT=DKFjYKEFS4tkXjamwkuiGf555Lww3eRSWwNTbue9x14
         $ UNWRAPPED_MINT=BVpjjYmSgSPZbFGTXe52NYXApsDNQJRe2qQF1hQft85e
-        $ ESCROW_ACCOUNT=4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3
         $ UNWRAPPED_TOKEN_PROGRAM=TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
         $ WRAPPED_TOKEN_PROGRAM=TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
 
-        $ spl-token-wrap unwrap $WRAPPED_TOKEN_ACCOUNT $ESCROW_ACCOUNT $UNWRAPPED_TOKEN_RECIPIENT 5 \
+        $ spl-token-wrap unwrap $WRAPPED_TOKEN_ACCOUNT $UNWRAPPED_TOKEN_RECIPIENT 5 \
             --transfer-authority $MULTISIG_ADDRESS \
             --fee-payer $FEE_PAYER \
             --unwrapped-mint $UNWRAPPED_MINT \
@@ -865,7 +862,6 @@ An example unwrapping tokens whose origin is a token account owned by an SPL Tok
         const UNWRAPPED_MINT_ADDRESS = address('E8r9ixwg7QYr6xCh4tSdHErZ6CUxQhVGHqF5bRoZXyyV');
         const UNWRAPPED_TOKEN_ACCOUNT = address('DGNyuKAWP3susy6XMbVsYHy2AMrrKmh8pXM3WpQUeyL2'); // Must be owned by multisig account
         const UNWRAPPED_TOKEN_PROGRAM = address('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
-        const ESCROW = address('4NoeQJKuH8fu1Pqk5k8BJpNu4wA7T8K6QABJxjTWoHs3');
         const RECIPIENT = address('HKHfad5Rx7Vv1iWzPiQhx3cnXpbVfDonYRRo1e16x5Bt');
         const AMOUNT_TO_WRAP = 100n;
 
@@ -884,9 +880,8 @@ An example unwrapping tokens whose origin is a token account owned by an SPL Tok
 
             const { value: unwrapBlockhash } = await rpc.getLatestBlockhash().send();
 
-            const unwrapTxA = multisigOfflineSignUnwrap({
+            const unwrapTxA = await multisigOfflineSignUnwrap({
                 payer: createNoopSigner(payer.address),
-                unwrappedEscrow: ESCROW,
                 wrappedTokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
                 amount: AMOUNT_TO_WRAP,
                 unwrappedMint: UNWRAPPED_MINT_ADDRESS,
@@ -901,9 +896,8 @@ An example unwrapping tokens whose origin is a token account owned by an SPL Tok
             });
             const signedUnwrapTxA = await partiallySignTransactionMessageWithSigners(unwrapTxA);
 
-            const unwrapTxB = multisigOfflineSignUnwrap({
+            const unwrapTxB = await multisigOfflineSignUnwrap({
                 payer: createNoopSigner(payer.address),
-                unwrappedEscrow: ESCROW,
                 wrappedTokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
                 amount: AMOUNT_TO_WRAP,
                 unwrappedMint: UNWRAPPED_MINT_ADDRESS,
@@ -918,9 +912,8 @@ An example unwrapping tokens whose origin is a token account owned by an SPL Tok
             });
             const signedUnwrapTxB = await partiallySignTransactionMessageWithSigners(unwrapTxB);
 
-            const unwrapTxC = multisigOfflineSignUnwrap({
+            const unwrapTxC = await multisigOfflineSignUnwrap({
                 payer: payer,
-                unwrappedEscrow: ESCROW,
                 wrappedTokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
                 amount: AMOUNT_TO_WRAP,
                 unwrappedMint: UNWRAPPED_MINT_ADDRESS,
