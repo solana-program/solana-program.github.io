@@ -4,7 +4,7 @@ description: An extensible token program on the Solana blockchain.
 ---
 
 The Token-2022 Program, also known as Token Extensions, is a superset of the
-functionality provided by the [Token Program](token.mdx).
+functionality provided by the [Token Program](../token.mdx).
 
 | Information | Account Address |
 | --- | --- |
@@ -121,13 +121,13 @@ program, that creates new token accounts for either Token or Token-2022.
 To get started with Token-2022:
 
 - [Install the Solana Tools](https://docs.solana.com/cli/install-solana-cli-tools)
-- [Project Status](token-2022/status.md)
-- [Extension Guide](token-2022/extensions.mdx)
-- [Wallet Guide](token-2022/wallet.md)
-- [On-Chain Program Guide](token-2022/onchain.md)
-- [Presentation about Token-2022](token-2022/presentation.md)
+- [Project Status](status.md)
+- [Extension Guide](extensions.mdx)
+- [Wallet Guide](wallet.md)
+- [On-Chain Program Guide](onchain.md)
+- [Presentation about Token-2022](presentation.md)
 
-For existing functionality in the Token Program, see the [token docs](token.mdx).
+For existing functionality in the Token Program, see the [token docs](../token.mdx).
 The Token functionality will always apply to Token-2022.
 
 ## Source
