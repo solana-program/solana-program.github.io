@@ -121,6 +121,7 @@ program, that creates new token accounts for either Token or Token-2022.
 To get started with Token-2022:
 
 - [Install the Solana Tools](https://docs.solana.com/cli/install-solana-cli-tools)
+
 - [Project Status](/docs/token-2022/status)
 - [Extension Guide](/docs/token-2022/extensions)
 - [Wallet Guide](/docs/token-2022/wallet)
