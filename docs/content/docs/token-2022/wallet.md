@@ -174,11 +174,11 @@ const token2022Accounts = await connection.getTokenAccountsByOwner(
 );
 const accountsWithProgramId = [...tokenAccounts.value, ...token2022Accounts.value].map(
   ({ account, pubkey }) =>
-    {
+    ({
       account,
       pubkey,
       programId: account.data.program === 'spl-token' ? TOKEN_PROGRAM_ID : TOKEN_2022_PROGRAM_ID,
-    },
+    }),
 );
 
 // later on...
