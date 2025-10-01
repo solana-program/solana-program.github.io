@@ -143,7 +143,7 @@ so anyone with pool tokens will still be able to withdraw from the pool.
 The stake pool manager may pass their administrator privileges to another account.
 
 ```console
-spl-stake-pool set-manager Zg5YBPAk8RqBR9kaLLSoN5C8Uv7nErBz1WC63HTsCPR --new-manager ./credentials/new-manager-keypair.json
+spl-stake-pool set-manager Zg5YBPAk8RqBR9kaLLSoN5C8Uv7nErBz1WC63HTsCPR --new-manager new-manager-keypair.json
 # Signature: 39N5gkaqXuWm6JPEUWfenKXeG4nSa71p7iHb9zurvdZcsWmbjdmSXwLVYfhAVHWucTY77sJ8SkUNpVpVAhe4eZ53
 ```
 
