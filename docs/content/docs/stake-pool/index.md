@@ -24,10 +24,10 @@ automatically use the latter address when targeting the devnet RPC.
 To get started with stake pools:
 
 - [Install the Solana Tools](https://docs.solana.com/cli/install-solana-cli-tools)
-- [Install the Stake Pool CLI](./cli.md)
-- [Step through the quick start guide](./quickstart.md)
-- [Learn more about stake pools](./overview.md)
-- [Learn more about fees and monetization](./fees.md)
+- [Install the Stake Pool CLI](/docs/stake-pool/cli)
+- [Step through the quick start guide](/docs/stake-pool/quickstart)
+- [Learn more about stake pools](/docs/stake-pool/overview)
+- [Learn more about fees and monetization](/docs/stake-pool/fees)
 
 ## Source
 

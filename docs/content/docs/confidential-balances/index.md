@@ -6,12 +6,12 @@ description: How to use the confidential transfer extension in Token-2022.
 The Token-2022 program provides confidential transfer functionality through the
 confidential transfer extension.
 
-Please see the [Token-2022 Introduction](../token-2022) for more general information
+Please see the [Token-2022 Introduction](/docs/token-2022) for more general information
 about Token-2022 and the concept of extensions.
 
 ## Setup
 
-See the [Token Setup Guide](../token#setup) to install the client utilities.
+See the [Token Setup Guide](/docs/token#setup) to install the client utilities.
 Token-2022 shares the same CLI and NPM packages for maximal compatibility.
 
 All of the commands here exist in a

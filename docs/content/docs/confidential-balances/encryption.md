@@ -26,7 +26,7 @@ systems that are designed to work specifically for Pedersen commitments can be
 directly used on the twisted ElGamal ciphertexts.
 
 We provide the formal description of the twisted ElGamal encryption in the
-[notes](./twisted_elgamal.pdf).
+[notes](/docs/confidential-balances/twisted_elgamal.pdf).
 
 ### Ciphertext Decryption
 
