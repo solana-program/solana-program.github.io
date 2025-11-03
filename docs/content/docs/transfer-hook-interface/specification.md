@@ -27,7 +27,7 @@ will live.
   - `n` number of additional accounts, written into the validation account
 
 The **validation account** is a key piece of the Transfer Hook interface, and is
-covered in more detail in the [next section](./configuring-extra-accounts). In
+covered in more detail in the [next section](/docs/transfer-hook-interface/configuring-extra-accounts). In
 short, it's an account whose data stores configurations that can be deserialized
 to determine which additional accounts are required by the transfer hook
 program.

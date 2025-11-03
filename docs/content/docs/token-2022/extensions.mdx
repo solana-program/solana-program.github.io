@@ -8,12 +8,12 @@ import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 The Token-2022 program provides additional functionality on mints and token
 accounts through an extension model.
 
-Please see the [Token-2022 Introduction](.) for more general information
+Please see the [Token-2022 Introduction](/docs/token-2022) for more general information
 about Token-2022 and the concept of extensions.
 
 ## Setup
 
-See the [Token Setup Guide](../token#setup) to install the client utilities.
+See the [Token Setup Guide](/docs/token#setup) to install the client utilities.
 Token-2022 shares the same CLI and NPM packages for maximal compatibility.
 
 All JS examples are adapted from the tests, and available in full at the
@@ -111,7 +111,7 @@ possible to close the mint account and reclaim the lamports on the mint account.
   <Tab value="CLI">
 
 ```console
-$ spl-token close-mint C47NXhUTVEisCfX7s16KrxYyimnui7HpUXZecE2TmLdB 
+$ spl-token close-mint C47NXhUTVEisCfX7s16KrxYyimnui7HpUXZecE2TmLdB
 Signature: 5nidwS9fJGJGdmaQjcwvNGVtk2ba5Zyu9ZLubjUKSsaAyzLUYvB6LK5RfUA767veBr45x7R1WW9N7WkYZ3Rqsb5B
 ```
 
@@ -1277,7 +1277,7 @@ it using the `authorize` command.
 
 ```console
 $ spl-token authorize 7LUgoQCqhk3VMPhpAnmS1zdCFW4C6cupxgbqWrTwydGx permanent-delegate GFMniFoE5X4F87L9jzjHaW4MTkXyX1AYHNfhFencgamg
-Updating 7LUgoQCqhk3VMPhpAnmS1zdCFW4C6cupxgbqWrTwydGx 
+Updating 7LUgoQCqhk3VMPhpAnmS1zdCFW4C6cupxgbqWrTwydGx
   Current permanent delegate: 4SnSuUtJGKvk2GYpBwmEsWG53zTurVM8yXGsoiZQyMJn
   New permanent delegate: GFMniFoE5X4F87L9jzjHaW4MTkXyX1AYHNfhFencgamg
 
@@ -1504,7 +1504,7 @@ harder.
 #### Solution
 
 To improve the situation, Token-2022 introduces the concept of the
-[transfer-hook interface](../transfer-hook-interface)
+[transfer-hook interface](/docs/transfer-hook-interface)
 and extension. A token creator must develop and deploy a program that
 implements the interface and then configure their token mint to use their program.
 
@@ -1544,7 +1544,7 @@ the transfer hook interface.
 
 The example program and the interface are powered by the
 [spl-tlv-account-resolution](https://github.com/solana-program/libraries/tree/main/tlv-account-resolution)
-library, which is explained in detail in the repository's 
+library, which is explained in detail in the repository's
 [README](https://github.com/solana-program/libraries/tree/main/tlv-account-resolution/README.md)
 
 #### Example: Create a mint with a transfer hook

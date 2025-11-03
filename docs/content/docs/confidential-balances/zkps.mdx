@@ -271,7 +271,7 @@ A public-key validity proof certifies that a twisted ElGamal public-key is a
 well-formed public key. The precise description of the system is specified in
 the following notes.
 
-[[Notes]](./pubkey_proof.pdf)
+[[Notes]](/docs/confidential-balances/pubkey_proof.pdf)
 
 The public-key validity proof is required for the `ConfigureAccount`
 instruction.
@@ -282,7 +282,7 @@ A ciphertext validity proof certifies that a twisted ElGamal ciphertext is a
 well-formed ciphertext. The precise description of the system is specified in
 the following notes.
 
-[[Notes]](./validity_proof.pdf)
+[[Notes]](/docs/confidential-balances/validity_proof.pdf)
 
 Validity proofs are required for the `Withdraw`, `Transfer`, and
 `TransferWithFee` instructions. These instructions require the client to include
@@ -296,7 +296,7 @@ A zero-balance proof certifies that a twisted ElGamal ciphertext encrypts the
 number zero. The precise description of the system is specified in the following
 notes.
 
-[[Notes]](./zero_proof.pdf).
+[[Notes]](/docs/confidential-balances/zero_proof.pdf).
 
 Zero-balance proofs are required for the `EmptyAccount` instruction, which
 prepares a token account for closing. An account may only be closed if the
@@ -315,7 +315,7 @@ _ciphertext-ciphertext_ equality proof certifies that two twisted ElGamal
 ciphertexts encrypt the same message. The precise description of the system is
 specified in the following notes.
 
-[[Notes]](./equality_proof.pdf).
+[[Notes]](/docs/confidential-balances/equality_proof.pdf).
 
 Ciphertext-commitment equality proofs are required for the `Transfer` and
 `TransferWithFee` instructions. Ciphertext-ciphertext equality proofs are

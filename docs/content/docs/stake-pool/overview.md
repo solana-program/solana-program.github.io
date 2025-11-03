@@ -49,7 +49,7 @@ available at:
 
 To reach a wider audience of users, stake pool managers are encouraged
 to provide a market for their pool's tokens, through an AMM
-like [Token Swap](../token-swap.md).
+like [Token Swap](/docs/token-swap).
 
 Alternatively, stake pool managers can partner with wallet and stake account
 providers for direct SOL deposits.
