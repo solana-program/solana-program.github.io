@@ -27,6 +27,13 @@ The Token program allows owners to close token accounts, but it is impossible
 to close mint accounts. In Token-2022, it is possible to close mints by initializing
 the `MintCloseAuthority` extension before initializing the mint.
 
+Note: Closing and reinitializing a mint with different extensions can lead to
+problems if any token accounts exist at the time of closing. For example, if
+a mint is closed and reinitialized with the transfer fee extension, there may be
+existing token accounts without the transfer fee extension, allowing them to
+bypass fee checks. In most cases, token accounts can be closed and reopened if
+needed, but in general, take care when using this feature.
+
 #### Example: Initializing a mint with mint close authority
 
 <Tabs groupId="language" items={['CLI', 'JS']}>
