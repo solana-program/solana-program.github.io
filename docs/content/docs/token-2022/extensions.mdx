@@ -1264,6 +1264,12 @@ on an NFT, whereby an auction program has permanent delegate authority for the
 token. After a sale, the permanent delegate can move the NFT from the owner to
 the buyer if the previous owner doesn't pay the tax.
 
+**Note**: The permanent delegate extension does not work with tokens stored in
+the confidential balance of a token account. Users may get around the permanent
+delegate using confidential balances. If you plan on using confidential transfers
+and the permanent delegate extension, you will need to either set "auto approve
+new accounts" to false or freeze accounts.
+
 #### Example: Create a mint with a permanent delegate
 
 <Tabs groupId="language" items={['CLI', 'JS']}>
