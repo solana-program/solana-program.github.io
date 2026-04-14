@@ -1373,6 +1373,9 @@ account at will. When enabled, it has the following effects during CPI:
 * Set Close Authority: prohibited unless unsetting
 * Set Owner: always prohibited, including outside CPI
 
+**Note**: If a mint is configured with the permanent delegate extension, the
+permanent delegate may always burn or transfer tokens, bypassing CPI Guard.
+
 #### Background
 
 When interacting with a dapp, users sign transactions that are constructed by
