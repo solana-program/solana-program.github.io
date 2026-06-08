@@ -2475,3 +2475,123 @@ Signature: 5A5frazN9VzMP5KiGGLNmXxE3gUJAptsbFweEyUdiFg7T2SsneVHSQvYT9ABR99uu5RjJ
 
   </Tab>
 </Tabs>
+
+### Permissioned Burn
+
+By default, anyone holding tokens (or an approved delegate) can burn them at any
+time. For some use cases, an issuer needs tighter control: tokens should only
+ever be burned with the issuer's explicit approval. The permissioned burn
+extension enforces exactly this.
+
+When a mint enables the permissioned burn extension, a dedicated **burn
+authority** is configured on the mint. Once set, every burn must be co-signed by
+that authority in addition to the token account's owner or delegate. The regular
+`Burn` and `BurnChecked` instructions are rejected for these mints, so tokens
+cannot be destroyed without the issuer's signature. This also covers burning
+from a confidential balance.
+
+The burn authority can be rotated, or cleared entirely, using the `SetAuthority`
+instruction with the `PermissionedBurn` authority type. Clearing the authority
+(setting it to `None`) re-enables the standard burn instructions and effectively
+turns the requirement off.
+
+#### Example: Create a mint with permissioned burn
+
+The CLI defaults the burn authority to the mint authority. To set a different
+one, pass an explicit pubkey with `--permissioned-burn`.
+
+<Tabs groupId="language" items={['CLI', 'JS']}>
+  <Tab value="CLI">
+
+```console
+$ spl-token --program-id TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb create-token --enable-permissioned-burn
+Creating token 8sfZUSn4dZTNVz4tH84JxQqMhKjabUYHrFwQncXSqXQ4 under program TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+
+Address:  8sfZUSn4dZTNVz4tH84JxQqMhKjabUYHrFwQncXSqXQ4
+Decimals:  9
+
+Signature: 5kq7UHHY9fZXViUFgVuPXJXrPZtM8MvFcKRNodAQVVEwvkdv1GRxsDpmkbyTXqPypf4bWd7A1E3X5ZstcT
+```
+
+To use a separate burn authority:
+
+```console
+$ spl-token --program-id TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb create-token --permissioned-burn <AUTHORITY_PUBKEY>
+```
+
+  </Tab>
+  <Tab value="JS">
+
+```jsx
+import {
+    clusterApiUrl,
+    Connection,
+    Keypair,
+    sendAndConfirmTransaction,
+    SystemProgram,
+    Transaction,
+    LAMPORTS_PER_SOL
+} from '@solana/web3.js';
+import {
+    createInitializeMintInstruction,
+    createInitializePermissionedBurnInstruction,
+    getMintLen,
+    ExtensionType,
+    TOKEN_2022_PROGRAM_ID
+} from '../src';
+
+(async () => {
+    const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+
+    const payer = Keypair.generate();
+    const airdropSignature = await connection.requestAirdrop(payer.publicKey, 2 * LAMPORTS_PER_SOL);
+    await connection.confirmTransaction({ signature: airdropSignature, ...(await connection.getLatestBlockhash()) });
+
+    const mintKeypair = Keypair.generate();
+    const burnAuthority = payer.publicKey;
+    const decimals = 9;
+    const mintLen = getMintLen([ExtensionType.PermissionedBurn]);
+    const lamports = await connection.getMinimumBalanceForRentExemption(mintLen);
+    const transaction = new Transaction().add(
+        SystemProgram.createAccount({
+            fromPubkey: payer.publicKey,
+            newAccountPubkey: mintKeypair.publicKey,
+            space: mintLen,
+            lamports,
+            programId: TOKEN_2022_PROGRAM_ID,
+        }),
+        createInitializePermissionedBurnInstruction(mintKeypair.publicKey, burnAuthority, TOKEN_2022_PROGRAM_ID),
+        createInitializeMintInstruction(mintKeypair.publicKey, decimals, payer.publicKey, payer.publicKey, TOKEN_2022_PROGRAM_ID),
+    );
+    await sendAndConfirmTransaction(connection, transaction, [payer, mintKeypair]);
+})();
+```
+
+  </Tab>
+</Tabs>
+
+#### Example: Burning with the permissioned burn authority
+
+Because the standard burn instructions are rejected once a burn authority is set,
+burns must go through the dedicated permissioned burn instruction, which takes
+the burn authority as an extra signer alongside the account owner or delegate.
+
+```jsx
+import { createPermissionedBurnInstruction, TOKEN_2022_PROGRAM_ID } from '../src';
+
+const transaction = new Transaction().add(
+    createPermissionedBurnInstruction(
+        tokenAccount,                // account to burn from
+        mintKeypair.publicKey,       // mint
+        owner.publicKey,             // account owner or delegate
+        burnAuthority.publicKey,     // permissioned burn authority on the mint
+        amount,                      // amount to burn
+        [],                          // multisig signers, if any
+        TOKEN_2022_PROGRAM_ID,
+    ),
+);
+await sendAndConfirmTransaction(connection, transaction, [owner, burnAuthority]);
+```
+
+Use `createPermissionedBurnCheckedInstruction` to additionally assert the mint's
+decimals as part of the burn.
