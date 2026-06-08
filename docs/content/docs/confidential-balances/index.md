@@ -15,9 +15,9 @@ See the [Token Setup Guide](/docs/token#setup) to install the client utilities.
 Token-2022 shares the same CLI and NPM packages for maximal compatibility.
 
 All of the commands here exist in a
-[helper script](https://github.com/solana-labs/solana-program-library/tree/master/token/cli/examples/confidential-transfer.sh)
+[helper script](https://github.com/solana-program/token-2022/blob/main/clients/cli/examples/confidential-transfer.sh)
 at the
-[Token CLI Examples](https://github.com/solana-labs/solana-program-library/tree/master/token/cli/examples).
+[Token CLI Examples](https://github.com/solana-program/token-2022/tree/main/clients/cli/examples).
 
 ### Example: Create a mint with confidential transfers
 
@@ -37,6 +37,25 @@ the token non-confidentially.
 
 Note that you must configure your mint with confidential transfers at creation,
 and cannot add it later.
+
+### Example: Set a global auditor
+
+Confidential transfers hide amounts from the public, but issuers in regulated
+environments often need a way to inspect them. The confidential transfer
+extension supports an optional _global auditor_: an ElGamal public key stored on
+the mint. When set, every confidential transfer must additionally encrypt its
+amount under the auditor's key, allowing the holder of the corresponding secret
+key to decrypt all transfer amounts for that mint.
+
+The confidential transfer authority can set or update the auditor key with:
+
+```console
+$ spl-token update-confidential-transfer-settings <MINT_PUBKEY> --auditor-pubkey <AUDITOR_ELGAMAL_PUBKEY>
+```
+
+The auditor key is supplied as a base64 encoding of an ElGamal public key. Pass
+`--auditor-pubkey none` to remove the auditor. See the
+[overview](/docs/confidential-balances/overview) for more on the auditor model.
 
 ### Example: Configure a token account for confidential transfers
 
