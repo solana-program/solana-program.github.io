@@ -99,6 +99,7 @@ Mint extensions currently include:
 * group member pointer
 * group member
 * scaled UI amount
+* permissioned burn
 * pausable
 
 Account extensions currently include:
