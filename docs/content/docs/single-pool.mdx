@@ -12,7 +12,7 @@ import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 
 ## Overview
 
-The single-validator stake pool program is an SPL program that enables liquid staking with zero fees, no counterparty, and 100% capital efficiency.
+The Single-Validator Stake Pool Program is an SPL program that enables liquid staking with zero fees, no counterparty, and 100% capital efficiency.
 
 The program defines a canonical pool for every vote account, which can be initialized permissionlessly, and mints tokens in exchange for stake delegated to its designated validator.
 
@@ -25,7 +25,7 @@ The Single Pool Program's source is available on
 
 ## Security Audits
 
-The Single Pool Program has received three audits to ensure total safety of funds:
+The Single Pool program has received three audits to ensure total safety of funds:
 
 * Zellic (2024-01-02)
     - Review commit hash [`ef44df9`](https://github.com/solana-labs/solana-program-library/commit/ef44df985e76a697ee9a8aabb3a223610e4cf1dc)
@@ -39,7 +39,7 @@ The Single Pool Program has received three audits to ensure total safety of fund
 
 ## Interface
 
-The single-validator stake pool program is written in Rust and available on [crates.io](https://crates.io/crates/spl-single-pool) and [docs.rs](https://docs.rs/spl-single-pool).
+The Single-Validator Stake Pool Program is written in Rust and available on [crates.io](https://crates.io/crates/spl-single-pool) and [docs.rs](https://docs.rs/spl-single-pool).
 
 Javascript bindings are available for [Web3.js Legacy](https://www.npmjs.com/package/@solana/spl-single-pool-classic) and [Kit](https://www.npmjs.com/package/@solana/spl-single-pool).
 
@@ -50,7 +50,7 @@ Javascript bindings are available for [Web3.js Legacy](https://www.npmjs.com/pac
 <Tabs groupId="language" items={['CLI', 'Kit', 'JS']}>
   <Tab value="CLI">
 
-The easiest way to interact with the single pool program is using the `spl-single-pool` command-line program.
+The easiest way to interact with the Single Pool program is using the `spl-single-pool` command-line program.
 With [Rust installed](https://rustup.rs/), run:
 ```console
 $ cargo install spl-single-pool-cli
@@ -302,6 +302,9 @@ When a pool is created, its stake account is delegated to the appropriate vote a
 After this epoch, stake must be in an "active" state to deposit into the pool.
 That is, it must be delegated to the vote account, and a deposit can only be performed after the next epoch boundary.
 
+Internally, all versions of the `deposit` command/transaction assign stake account authority to Single Pool in a prior instruction.
+This means the user does not have to provide a wallet signature to the Single Pool program and is intended as a safety measure under the principle of least privilege.
+
 Assuming the stake account `9cc4cmLcZA89fYmcVPPTLmHPQ5gab3R6jMqj124abkSi` is in an active state:
 
 <Tabs groupId="language" items={['CLI', 'Kit', 'JS']}>
@@ -353,9 +356,10 @@ All versions of the `deposit` command/transaction automatically create the assoc
 #### Withdrawing
 
 Withdrawing is simple, burning tokens to receive the amount of stake they're backed by.
-Stake can be withdrawn into an active stake account delegated to the appropriate vote account, or to a new stake account, with all authority assigned to the user wallet.
-Internally, all versions of the `withdraw` command/transaction use a token delegate to accomplish the burn.
-This means the user does not have to provide a wallet signature to the single pool program.
+Stake is split into to a new stake account pre-funded with rent-exemption, with all authority assigned to the user wallet.
+
+Internally, all versions of the `withdraw` command/transaction grant a token delegation to the Single Pool authority in a prior instruction to accomplish the burn.
+This means the user does not have to provide a wallet signature to the Single Pool program and is intended as a safety measure under the principle of least privilege.
 
 <Tabs groupId="language" items={['CLI', 'Kit', 'JS']}>
   <Tab value="CLI">
