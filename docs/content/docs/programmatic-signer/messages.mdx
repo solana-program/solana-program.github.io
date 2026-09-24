@@ -1,0 +1,101 @@
+---
+title: Messages
+description: The three message layers and what you sign.
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { MessageLayersDiagram } from '@/components/programmatic-signer/message-layers';
+
+An action is carried in three nested layers. The execution message says what to do. The authorization message wraps it with the executor and nonce account it will use. Once the authorities sign it, the message and its signatures together form an authorization. The relay transaction carries that authorization onto the network.
+
+<MessageLayersDiagram />
+
+## The three layers
+
+| Layer                 | Purpose                                                                           | Signed by                      | Blockhash field          |
+| --------------------- | --------------------------------------------------------------------------------- | ------------------------------ | ------------------------ |
+| Execution message     | Holds the application instructions to run                                         | Nobody                         | The expected nonce value |
+| Authorization message | Wraps the execution message in one `Execute` call and binds it to a nonce account | Every required authority       | Ignored                  |
+| Relay transaction     | Carries the authorization on chain and pays the fee                               | The relayer and any co-signers | A recent blockhash       |
+
+## What the signatures cover
+
+Ed25519 Signer checks each authority signature against the serialized authorization message, with signature `i` checked against the key at index `i`. Each signature covers those exact bytes, not a serialized transaction, a signature count prefix, or the base64 text. Because the account keys are part of those bytes, **a relayer cannot swap in different accounts**. Signer rejects any `Submit` account that differs from the signed key at the same index.
+
+The execution message has no signatures at all. Its header requests signer privileges, which the programs supply as they call one another. For each verified authority, Signer promotes the matching PDA wherever the executor instruction references it.
+
+## Collect signatures from several authorities
+
+One authorization message can require several Ed25519 authorities. Every one of them signs the same bytes. Their signatures go into `Submit` in the order the authorities appear at the front of the account list. Every listed authority must sign. They can sign at different times and in any order. Adding one signature leaves the others valid.
+
+<Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
+<Tab value="CLI">
+
+Pass every authority with a repeated `--authority` flag. Each authority runs the identical command with their own `--signer`.
+
+```sh
+# Alice
+spl-programmatic-signer transaction sign \
+  --inner-message "$EXECUTION_MESSAGE" \
+  --nonce-account "$NONCE_ACCOUNT" \
+  --nonce-hash "$NONCE_VALUE" \
+  --nonce-authority "$NONCE_AUTHORITY" \
+  --authority "$ALICE" \
+  --authority "$BOB" \
+  --signer alice.json
+
+# Bob runs the same command with --signer bob.json
+```
+
+Once every signature is collected, `transaction submit` will relay them together in one transaction. Coming soon 🚧
+
+</Tab>
+<Tab value="TypeScript">
+
+Coming soon 🚧
+
+</Tab>
+</Tabs>
+
+Adding, removing, or reordering authorities changes the message and voids every signature collected so far.
+
+## Three blockhash fields, three meanings
+
+In the execution message, the field holds the current SPL nonce value. Executor compares it to the stored value and does not care whether it looks like a recent blockhash.
+
+In the authorization message, the programs ignore the field.
+
+In the relay transaction, the blockhash is a recent one and sets the transaction's lifetime. When it expires, the relayer must fetch a new one and sign the relay again. The authorization stays as it is.
+
+None of these fields gives an authorization a deadline. It stays valid until its nonce advances, so any deadline has to be enforced by an instruction in the execution message.
+
+## What a relayer can change
+
+| Field or choice                                                                  | Without a new authorization? |
+| -------------------------------------------------------------------------------- | ---------------------------- |
+| Relay fee payer, blockhash, and signatures                                       | Yes                          |
+| Other instructions before or after `Submit`, such as compute budget              | Yes                          |
+| Anything in the authorization message, including the execution message inside it | No                           |
+
+## Additional transaction signers
+
+Some applications need an ordinary keypair to sign alongside the PDA. For the application to see that key as a signer:
+
+1. The execution message lists it as a required signer.
+2. It is a required signer of the authorization message and signs it.
+3. It signs the relay transaction.
+
+Another reason to add a signer is to pin the relayer. To have one specific wallet submit and pay, list its address as a required signer in the authorization message. It does not need to appear anywhere else. Signer requires its signature over the authorization, so no one can submit without that wallet. That does not strictly make it the fee payer, but in practice the wallet that must sign is the one that submits.
+
+<Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
+<Tab value="CLI">
+
+Coming soon 🚧
+
+</Tab>
+<Tab value="TypeScript">
+
+Coming soon 🚧
+
+</Tab>
+</Tabs>

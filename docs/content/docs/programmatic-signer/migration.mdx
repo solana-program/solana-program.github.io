@@ -1,0 +1,81 @@
+---
+title: Migration
+description: Move your current asset authorities to a programmatic signer PDA.
+---
+
+## How a migration works
+
+Assets you already hold are controlled directly by your keypair. To use them with Programmatic Signer, hand that control to the keypair's derived programmatic signer PDA. From then on, the PDA acts on chain and your keypair only signs long-lived authorizations. The `migrate` commands build each handoff as a durable-nonce transaction that your keypair approves, so you can sign it offline.
+
+Every migration is checked. It needs a signature from your keypair and from the PDA, which your keypair provides through an authorization in the same transaction. If the PDA cannot act, the migration fails, so **you never move control to an address you cannot use**.
+
+## Before you start
+
+1. [Derive the programmatic signer](/docs/programmatic-signer/usage#derive-the-programmatic-signer) from your keypair's public key.
+2. [Create an SPL Nonce account](/docs/programmatic-signer/usage#create-a-nonce-account) with the PDA as its authority.
+3. Create a System durable nonce account for each migration transaction with `solana create-nonce-account`. Its authority signs the migration transaction.
+
+## Find what the key controls
+
+`migrate scan` will list the accounts where your keypair is still an authority. It knows only the programs it supports, so check authorities in other programs yourself.
+
+Coming soon 🚧
+
+## Prepare the migration
+
+Each asset has its own `migrate prepare` command with its own arguments. It reads the current state, checks that your keypair holds the authority you are moving, and writes the unsigned transaction as JSON.
+
+### Stake accounts
+
+`migrate prepare stake` moves the staker, the withdrawer, or both. Choose with `--authority-type` as `staker`, `withdrawer`, or `both`.
+
+```sh
+spl-programmatic-signer migrate prepare stake <STAKE_ACCOUNT> \
+  --authority <AUTHORITY> \
+  --authority-type both \
+  --legacy-nonce <SYSTEM_NONCE_ACCOUNT> \
+  --programmatic-nonce <SPL_NONCE_ACCOUNT> \
+  --outfile stake-migration.json
+```
+
+### Vote accounts
+
+`migrate prepare vote` moves the vote account's authorities.
+
+Coming soon 🚧
+
+### SOL
+
+`migrate prepare sol` moves SOL from your wallet to the PDA.
+
+Coming soon 🚧
+
+### Token balances
+
+`migrate prepare token` moves balances from your token accounts to the PDA's.
+
+Coming soon 🚧
+
+### Mints
+
+`migrate prepare mint` moves the mint and freeze authorities.
+
+Coming soon 🚧
+
+### Upgradeable programs
+
+`migrate prepare program` moves the program's upgrade authority.
+
+Coming soon 🚧
+
+## Sign the migration
+
+`migrate sign` will sign the migration, offline if you like. It signs the authorization message, places that signature in `Submit`, and then signs the durable-nonce transaction.
+
+Coming soon 🚧
+
+## Submit and confirm
+
+Coming soon 🚧
+
+After the transaction lands, read the authority field or balance back. Then relay a small action through the PDA before you move anything valuable. Run `migrate scan` again to see what your keypair still controls.
