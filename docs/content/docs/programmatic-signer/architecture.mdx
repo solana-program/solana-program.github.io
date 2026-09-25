@@ -10,16 +10,16 @@ A programmatic signer lets you approve an action with an Ed25519 keypair without
 
 ## Program roles
 
-| Program                 | Responsibility                                                                                                                              | State                                                                                |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Ed25519 Signer          | Checks every authorization signature, the executor instruction, and its accounts, then gives the matching PDAs signer privilege for one CPI | None. It stores no authorizations and no nonces                                      |
-| Legacy Message Executor | Checks the execution message and the nonce, advances the nonce, then invokes each application instruction in order                          | None of its own. It reads and advances an SPL Nonce account                          |
-| SPL Nonce               | Initializes nonce accounts, advances their values, and lets their authorities withdraw funds or close them                                  | One 72-byte account per nonce, holding the value, authority, and initialization slot |
-| Application program     | Applies its own rules to the instructions, accounts, and signer privileges it receives                                                      | Whatever the application defines                                                     |
+| Program                 | Responsibility                                                                                                                                                                                  | State                                                                                |
+|-------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
+| Ed25519 Signer          | Checks every authorization signature, the executor instruction, and its accounts, then gives the matching PDAs signer privilege for one CPI                                                     | None. It stores no authorizations and no nonces                                      |
+| Legacy Message Executor | Checks the execution message and the nonce, advances the nonce, then invokes each application instruction in order                                                                              | None of its own. It reads and advances a Nonce program account                       |
+| Nonce                   | Initializes nonce accounts, advances their values, and lets their authorities withdraw funds or close them. This is not related to the System program's durable nonces (soon to be deprecated). | One 72-byte account per nonce, holding the value, authority, and initialization slot |
+| Application program     | Applies its own rules to the instructions, accounts, and signer privileges it receives                                                                                                          | Whatever the application defines                                                     |
 
-Each program does one job. Ed25519 Signer never parses application instructions, the executor never verifies a signature, and SPL Nonce never knows what its value protects. Each can be audited and frozen on its own.
+Each program does one job. Ed25519 Signer never parses application instructions, the executor never verifies a signature, and the Nonce program never knows what its value protects. Each can be audited and frozen on its own.
 
-The pieces are also interchangeable. Executor and SPL Nonce accept calls from any program, so a signer program for another signature scheme, such as a quantum-resistant one, could reuse both. An executor for a message format that does not exist yet could reuse SPL Nonce the same way.
+The pieces are also interchangeable. Executor and the Nonce program accept calls from any program, so a signer program for another signature scheme, such as a quantum-resistant one, could reuse both. An executor for a message format that does not exist yet could reuse the Nonce program the same way.
 
 Ed25519 Signer calls only the executors on its built-in allow list, since it relies on them to consume a nonce before its PDAs act. Supporting a new executor means adding it to that list in a program upgrade. [Allow list source](https://github.com/solana-program/ed25519-programmatic-signer/blob/5eb7ed9d229cb53bfd77375db6e01b1fc45c68aa/signer/program/src/executor_policy.rs).
 

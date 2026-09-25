@@ -45,7 +45,7 @@ export function RequestFlowDiagram() {
           <FlowArrow>
             1. CPI <code>Advance</code>
           </FlowArrow>
-          <Card title="SPL Nonce" tone="violet">
+          <Card title="Nonce program" tone="violet">
             Advances the nonce so the authorization cannot run twice.
           </Card>
         </div>

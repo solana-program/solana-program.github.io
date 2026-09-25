@@ -1,12 +1,12 @@
 ---
 title: Nonce accounts
-description: Create, read, advance, and close SPL Nonce accounts.
+description: Create, read, advance, and close Nonce program accounts.
 ---
 
 import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 import { NonceAdvanceDiagram } from '@/components/programmatic-signer/nonce-advance';
 
-An SPL Nonce account stores a hash that advances each time an authorized action succeeds. It also records the authority allowed to advance it and the slot it was initialized in. An authority can hold as many nonce accounts as it needs. Each one advances independently of the others.
+A Nonce program account stores a hash that advances each time an authorized action succeeds. It also records the authority allowed to advance it and the slot it was initialized in. An authority can hold as many nonce accounts as it needs. Each one advances independently of the others.
 
 ## Create a nonce account
 
@@ -31,7 +31,7 @@ Coming soon 🚧
 
 ## Account layout
 
-Fetch the account, check that SPL Nonce owns it and that it holds exactly 72 bytes, then read the three fields.
+Fetch the account, check that the Nonce program owns it and that it holds exactly 72 bytes, then read the three fields.
 
 | Byte range | Field               | Type      |
 | ---------- | ------------------- | --------- |
@@ -43,7 +43,7 @@ Fetch the account, check that SPL Nonce owns it and that it holds exactly 72 byt
 
 <NonceAdvanceDiagram />
 
-Executor advances the nonce before running any application instruction, so nothing inside the message can consume the same nonce twice. `Advance` needs signer privilege from the nonce authority. When that authority is a programmatic signer PDA, Ed25519 Signer grants it after verifying the authority's signature. SPL Nonce never interprets that hash. Executor is what ties it to the message it runs. [Execution source](https://github.com/solana-program/ed25519-programmatic-signer/blob/5eb7ed9d229cb53bfd77375db6e01b1fc45c68aa/executor/program/src/execute.rs).
+Executor advances the nonce before running any application instruction, so nothing inside the message can consume the same nonce twice. `Advance` needs signer privilege from the nonce authority. When that authority is a programmatic signer PDA, Ed25519 Signer grants it after verifying the authority's signature. The Nonce program never interprets that hash. Executor is what ties it to the message it runs. [Execution source](https://github.com/solana-program/ed25519-programmatic-signer/blob/5eb7ed9d229cb53bfd77375db6e01b1fc45c68aa/executor/program/src/execute.rs).
 
 ## Nonce derivation
 

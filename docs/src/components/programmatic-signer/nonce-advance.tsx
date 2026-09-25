@@ -7,7 +7,7 @@ export function NonceAdvanceDiagram() {
         Its blockhash field holds the current nonce.
       </Card>
       <FlowArrow>Executor checks it against the stored nonce</FlowArrow>
-      <Card title="SPL Nonce" tone="violet">
+      <Card title="Nonce program" tone="violet">
         <code>Advance</code> checks the nonce and stores the next one. The next
         nonce is derived from the current nonce and a SHA-256 hash of the
         execution message.
