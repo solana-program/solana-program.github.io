@@ -31,7 +31,7 @@ One authorization message can require several Ed25519 authorities. Every one of 
 <Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
 <Tab value="CLI">
 
-Pass every authority with a repeated `--authority` flag. Each authority runs the identical command with their own `--signer`.
+Pass every authority with a repeated `--authority` flag. Each authority runs the same command with their own `--signer`.
 
 ```sh
 # Alice
@@ -57,7 +57,7 @@ Coming soon 🚧
 </Tab>
 </Tabs>
 
-Adding, removing, or reordering authorities changes the message and voids every signature collected so far.
+Changing the set of authorities changes the message and voids every signature collected so far.
 
 ## Three blockhash fields, three meanings
 
