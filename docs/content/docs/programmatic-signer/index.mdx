@@ -10,7 +10,7 @@ Solana transactions must be processed before their recent blockhash expires. Thi
 **Programmatic Signer** exists to address this using program verified, long-lived authorizations:
 
 - An authority signs an authorization message off chain
-- A relayer flexibly submits it later and pays the fee
+- A relayer submits it later and pays the fee
 - The ed25519 signature is verified in program and the authority's PDA is granted signer privilege
 - A nonce is advanced to prevent replays
 - The approved instructions are invoked via CPI
@@ -28,16 +28,16 @@ Audits and remediations to come before the v1 release and before any mainnet dep
 </Callout>
 
 | Program                 | Address                                        |
-| ----------------------- | ---------------------------------------------- |
+|-------------------------|------------------------------------------------|
 | Ed25519 Signer          | `EdSigVfK1DkeMrjFNDMjwfQaJPhPTtX7jW8uPv3oKEgN` |
 | Legacy Message Executor | `ExecxgyHYsAXB4c5dZodV1zJZ9hqfsDCYkRDRATrpkFR` |
-| SPL Nonce               | `Noncediea1fH12usShuQAz28UhgAeuE5Maf32LsMUQB`  |
+| Nonce                   | `Noncediea1fH12usShuQAz28UhgAeuE5Maf32LsMUQB`  |
 
 Currently deployed to **Devnet** from commit [`5eb7ed9`](https://github.com/solana-program/ed25519-programmatic-signer/tree/5eb7ed9d229cb53bfd77375db6e01b1fc45c68aa).
 
 ## Use cases
 
-- Make payments from a treasury whose approval key never goes online. An operator submits them and pays the fees.
+- Make payments from a treasury whose approval key never goes online. An operator submits them and pays the network transaction fees.
 - Settle a trade between two parties who approve on different days. Both transfers run together once both have signed.
 - Sign a series of actions at once and let someone else submit them in order later. Changing an earlier one means re-signing the ones after it.
 - Move existing durable-nonce workflows to an approach that does not depend on them.

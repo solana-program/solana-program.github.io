@@ -12,8 +12,8 @@ Every migration is checked. It needs a signature from your keypair and from the 
 ## Before you start
 
 1. [Derive the programmatic signer](/docs/programmatic-signer/usage#derive-the-programmatic-signer) from your keypair's public key.
-2. [Create an SPL Nonce account](/docs/programmatic-signer/usage#create-a-nonce-account) with the PDA as its authority.
-3. Create a System durable nonce account for each migration transaction with `solana create-nonce-account`. Its authority signs the migration transaction.
+2. [Create a Nonce account](/docs/programmatic-signer/usage#create-a-nonce-account) with the PDA as its authority.
+3. Create a System durable nonce account with `solana create-nonce-account` or reuse an existing one. Its authority signs the migration transaction.
 
 ## Find what the key controls
 

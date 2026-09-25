@@ -11,7 +11,11 @@ Follow the [remaining work](https://github.com/solana-program/ed25519-programmat
 
 </Callout>
 
-The examples use the [programs deployed on Devnet](/docs/programmatic-signer#deployments).
+The examples use the [programs deployed on Devnet](/docs/programmatic-signer#deployments). Configure the Solana CLI to use Devnet:
+
+```sh
+solana config set -ud
+```
 
 ## Install
 
@@ -51,7 +55,6 @@ The fee payer signs and pays for every transaction you send, including the relay
 Create a relayer key and print its address for the faucet.
 
 ```sh
-RPC=https://api.devnet.solana.com
 solana-keygen new --no-bip39-passphrase --outfile relayer.json
 solana-keygen pubkey relayer.json
 ```
@@ -83,8 +86,7 @@ Fund the PDA. The example action on this page transfers 0.001 SOL from it using 
 solana transfer "$PDA" 0.01 \
   --from relayer.json \
   --fee-payer relayer.json \
-  --allow-unfunded-recipient \
-  --url "$RPC"
+  --allow-unfunded-recipient
 ```
 
 </Tab>
@@ -107,11 +109,10 @@ Create the account and initialize it in the same transaction with the PDA as its
 ```sh
 spl-programmatic-signer nonce create \
   --cold-authority "$AUTHORITY" \
-  --fee-payer relayer.json \
-  --url "$RPC"
+  --fee-payer relayer.json
 ```
 
-`--cold-authority` derives the PDA from the authority's public key and stores it as the nonce authority. `--nonce-authority` stores an address as given instead. The CLI generates a throwaway keypair for the new account unless you pass `--nonce-keypair`, fetches the rent minimum, sends `CreateAccount` and `Initialize` together, and reads the account back. The output includes the nonce account address and its first nonce value. Keep the address.
+`--cold-authority` takes the public key of your offline Ed25519 signer. The CLI derives its programmatic signer PDA and stores that PDA as the nonce authority. `--nonce-authority` stores an address as given instead. The CLI generates a throwaway keypair for the new account unless you pass `--nonce-keypair`, fetches the rent minimum, sends `CreateAccount` and `Initialize` together, and reads the account back. The output includes the nonce account address and its first nonce value. Keep the address.
 
 ```sh
 NONCE_ACCOUNT=<Nonce account from the output>
@@ -133,7 +134,7 @@ Read the current value right before building an authorization. The signing machi
 <Tab value="CLI">
 
 ```sh
-spl-programmatic-signer nonce show "$NONCE_ACCOUNT" --url "$RPC"
+spl-programmatic-signer nonce show "$NONCE_ACCOUNT"
 ```
 
 The CLI checks that the account exists, belongs to the Nonce program, and is initialized. Then it prints the account details.
@@ -225,7 +226,7 @@ spl-programmatic-signer transaction sign \
 | Flag                | Meaning                                                                                                                                  |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `--inner-message`   | The base64 execution message                                                                                                             |
-| `--nonce-account`   | The SPL Nonce account that protects the action                                                                                           |
+| `--nonce-account`   | The Nonce program account that protects the action                                                                                       |
 | `--nonce-hash`      | The expected nonce value. Replaces the execution message's blockhash field                                                               |
 | `--nonce-authority` | The address stored in that nonce account, normally the PDA                                                                               |
 | `--authority`       | Repeat for every key whose PDA needs signer privilege                                                                                    |
