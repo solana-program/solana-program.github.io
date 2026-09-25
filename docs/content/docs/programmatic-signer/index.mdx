@@ -10,7 +10,7 @@ Solana transactions must be processed before their recent blockhash expires. Thi
 **Programmatic Signer** exists to address this using program verified, long-lived authorizations:
 
 - An authority signs an authorization message off chain
-- A relayer flexibly submits it later and pays the fee
+- A relayer submits it later and pays the fee
 - The ed25519 signature is verified in program and the authority's PDA is granted signer privilege
 - A nonce is advanced to prevent replays
 - The approved instructions are invoked via CPI
