@@ -1,0 +1,309 @@
+---
+title: Basic usage
+description: Set up a programmatic signer, then sign and relay an action with the CLI or TypeScript.
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+<Callout type="warn" title="CLI and clients are in progress">
+
+Follow the [remaining work](https://github.com/solana-program/ed25519-programmatic-signer/issues/14). If something is missing, confusing, or doesn't fit your workflow, [open an issue](https://github.com/solana-program/ed25519-programmatic-signer/issues/new/choose).
+
+</Callout>
+
+The examples use the [programs deployed on Devnet](/docs/programmatic-signer#deployments).
+
+## Install
+
+<Callout type="info" title="Build from source">
+
+The Rust crates on crates.io are placeholders and the npm package is not published yet. Use the source builds below.
+
+</Callout>
+
+<Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
+<Tab value="CLI">
+
+You need Rust and the Solana CLI. The repository pins its toolchain.
+
+```sh
+git clone https://github.com/solana-program/ed25519-programmatic-signer.git
+cd ed25519-programmatic-signer
+cargo install --locked --path clients/cli
+spl-programmatic-signer --help
+```
+
+</Tab>
+<Tab value="TypeScript">
+
+Coming soon 🚧
+
+</Tab>
+</Tabs>
+
+## Fund a fee payer
+
+The fee payer signs and pays for every transaction you send, including the relay. It also funds the nonce account and the PDA below, so about 0.02 Devnet SOL is enough. Fund it from the [Solana Faucet](https://faucet.solana.com/).
+
+<Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
+<Tab value="CLI">
+
+Create a relayer key and print its address for the faucet.
+
+```sh
+RPC=https://api.devnet.solana.com
+solana-keygen new --no-bip39-passphrase --outfile relayer.json
+solana-keygen pubkey relayer.json
+```
+
+</Tab>
+<Tab value="TypeScript">
+
+Coming soon 🚧
+
+</Tab>
+</Tabs>
+
+## Derive the programmatic signer
+
+The authority is an Ed25519 keypair. Its programmatic signer is a PDA derived from the authority's public key and has no private key of its own. Once the Ed25519 Signer program verifies the authority's signature, the PDA acts as a signer for the approved instructions.
+
+<Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
+<Tab value="CLI">
+
+```sh
+solana-keygen new --no-bip39-passphrase --outfile authority.json
+AUTHORITY=$(solana-keygen pubkey authority.json)
+PDA=$(spl-programmatic-signer address "$AUTHORITY")
+```
+
+Fund the PDA. The example action on this page transfers 0.001 SOL from it using Programmatic Signer.
+
+```sh
+solana transfer "$PDA" 0.01 \
+  --from relayer.json \
+  --fee-payer relayer.json \
+  --allow-unfunded-recipient \
+  --url "$RPC"
+```
+
+</Tab>
+<Tab value="TypeScript">
+
+Coming soon 🚧
+
+</Tab>
+</Tabs>
+
+Deriving the address gives the PDA no control over anything yet. For SOL, fund it. For tokens, stake, or a program, make the PDA the authority first. See [migration](/docs/programmatic-signer/migration).
+
+## Create a nonce account
+
+Create the account and initialize it in the same transaction with the PDA as its authority. This account provides replay protection. Each authorization expects the account's current nonce value. Executor advances that value when the action runs, so the same authorization can never execute twice.
+
+<Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
+<Tab value="CLI">
+
+```sh
+spl-programmatic-signer nonce create \
+  --cold-authority "$AUTHORITY" \
+  --fee-payer relayer.json \
+  --url "$RPC"
+```
+
+`--cold-authority` derives the PDA from the authority's public key and stores it as the nonce authority. `--nonce-authority` stores an address as given instead. The CLI generates a throwaway keypair for the new account unless you pass `--nonce-keypair`, fetches the rent minimum, sends `CreateAccount` and `Initialize` together, and reads the account back. The output includes the nonce account address and its first nonce value. Keep the address.
+
+```sh
+NONCE_ACCOUNT=<Nonce account from the output>
+```
+
+</Tab>
+<Tab value="TypeScript">
+
+Coming soon 🚧
+
+</Tab>
+</Tabs>
+
+## Read the nonce
+
+Read the current value right before building an authorization. The signing machine is often air-gapped and cannot check it, so the value goes into the message on the online side.
+
+<Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
+<Tab value="CLI">
+
+```sh
+spl-programmatic-signer nonce show "$NONCE_ACCOUNT" --url "$RPC"
+```
+
+The CLI checks that the account exists, belongs to the Nonce program, and is initialized. Then it prints the account details.
+
+```sh
+NONCE_VALUE=<Nonce from the output>
+```
+
+</Tab>
+<Tab value="TypeScript">
+
+Coming soon 🚧
+
+</Tab>
+</Tabs>
+
+## Build the execution message
+
+The execution message is a legacy message with the instructions to run. This page builds a SOL transfer as an example, but yours can hold any instructions your application needs. It lists the PDA as a required signer and carries the current nonce in its blockhash field. In this example, the PDA is also the nonce authority. A different PDA can be the nonce authority if its own authority also signs the authorization.
+
+<Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
+<Tab value="CLI">
+
+The Solana CLI can compile a message without sending it. Pass the nonce value as the blockhash and the PDA as both the source and the fee payer.
+
+```sh
+solana transfer <RECIPIENT> 0.001 \
+  --from "$PDA" \
+  --fee-payer "$PDA" \
+  --blockhash "$NONCE_VALUE" \
+  --sign-only \
+  --dump-transaction-message \
+  --allow-unfunded-recipient \
+  --output json
+```
+
+The `message` field of the output is the base64 execution message. The `--fee-payer` flag only fills the message's first slot. The relayer pays the real fee. Do not use `--nonce`, which is for System durable nonces.
+
+```sh
+EXECUTION_MESSAGE=<message from the output>
+```
+
+</Tab>
+<Tab value="TypeScript">
+
+Coming soon 🚧
+
+</Tab>
+</Tabs>
+
+## Simulate the action
+
+`transaction simulate` will run the execution message through the executor program, so you can see what the action does before anyone signs.
+
+<Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
+<Tab value="CLI">
+
+Coming soon 🚧
+
+</Tab>
+<Tab value="TypeScript">
+
+Coming soon 🚧
+
+</Tab>
+</Tabs>
+
+## Review and sign
+
+The authorization message is what the authorities sign. It names the executor program that will run your execution message and the nonce account used for replay protection. Your signature covers all of it, including every byte of the execution message.
+
+You can review and sign entirely offline.
+
+<Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
+<Tab value="CLI">
+
+`transaction sign` builds the authorization message from the execution message and signs it.
+
+```sh
+spl-programmatic-signer transaction sign \
+  --inner-message "$EXECUTION_MESSAGE" \
+  --nonce-account "$NONCE_ACCOUNT" \
+  --nonce-hash "$NONCE_VALUE" \
+  --nonce-authority "$PDA" \
+  --authority "$AUTHORITY" \
+  --signer authority.json
+```
+
+| Flag                | Meaning                                                                                                                                  |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `--inner-message`   | The base64 execution message                                                                                                             |
+| `--nonce-account`   | The SPL Nonce account that protects the action                                                                                           |
+| `--nonce-hash`      | The expected nonce value. Replaces the execution message's blockhash field                                                               |
+| `--nonce-authority` | The address stored in that nonce account, normally the PDA                                                                               |
+| `--authority`       | Repeat for every key whose PDA needs signer privilege                                                                                    |
+| `--signer`          | Which key signs: a keypair file, `usb://ledger`, `prompt://`, or `ASK`. Repeat for several local keys. Each must appear in `--authority` |
+
+For more than one authority, see [collect signatures from several authorities](/docs/programmatic-signer/messages#collect-signatures-from-several-authorities).
+
+</Tab>
+<Tab value="TypeScript">
+
+Coming soon 🚧
+
+</Tab>
+</Tabs>
+
+### What the review shows
+
+Before signing, the CLI prints a review of what you are about to sign. Here it is for a sample 0.001 SOL transfer, trimmed to the key lines.
+
+```text
+=== Authorization ===
+Message hash: Cu7T7FVG2tiDRuu23pNu7ZyGfAPY2Dp3FJeZD23Qgncd
+PDA promotion authorities:
+  GmaDrppBC7P5ARKV8g3djiwP89vz1jLK23V2GBjuAEGB (derived signer: DPtajHyTTrmEHk3MnyfWVCypdEdyjk1ESbK7UxbaxXqw)
+
+=== Replay protection ===
+SPL nonce account address: YMN9Qj5jPNp7j14VPcML1B6xGgcPWVZUGLFU3Mnyfaf
+Nonce authority: DPtajHyTTrmEHk3MnyfWVCypdEdyjk1ESbK7UxbaxXqw
+Expected nonce value (inner message's recent blockhash): gBxS1f6uyyGPuW5MzGBukidSb71jdsCb5fZaoSzULE5
+
+=== Outer message ===
+Your signatures authorize this Execute call, including its accounts, permissions,
+and the inner message.
+[...]
+
+=== Inner message (what the executor program invokes via CPI) ===
+[...]
+      "parsed": {
+        "info": {
+          "destination": "cGfHiC6Kgg3FpFZvgwGcswsCRtp4aBP2fzuXRQPizuN",
+          "lamports": 1000000,
+          "source": "DPtajHyTTrmEHk3MnyfWVCypdEdyjk1ESbK7UxbaxXqw"
+        },
+        "type": "transfer"
+      },
+[...]
+
+Signing returns addresses, signatures, and the base64 Execute message. Nothing is submitted.
+Sign this message for GmaDrppBC7P5ARKV8g3djiwP89vz1jLK23V2GBjuAEGB? [y/N]
+```
+
+Review every line carefully before you press `y`, since your signature approves exactly what the review shows. The command then prints each address and signature, followed by the base64 authorization message. Nothing is submitted.
+
+```text
+Address: <authority address>
+Signature: <base58 signature>
+
+Execute message (base64):
+<base64 authorization message>
+```
+
+Pass this output to the relayer.
+
+## Relay
+
+The relayer sends the authorization in a relay transaction. It puts the authorization message and signatures into a `Submit` instruction, adds a fresh blockhash, and signs as the fee payer. The authority does not sign the relay transaction, so it can stay offline.
+
+<Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
+<Tab value="CLI">
+
+Coming soon 🚧
+
+</Tab>
+<Tab value="TypeScript">
+
+Coming soon 🚧
+
+</Tab>
+</Tabs>
+
+Once the action executes, the nonce advances and the authorization can never run again.

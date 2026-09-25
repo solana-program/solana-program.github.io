@@ -1,0 +1,10 @@
+{
+  "title": "Programmatic Signer",
+  "pages": [
+    "usage",
+    "migration",
+    "architecture",
+    "messages",
+    "nonce-accounts"
+  ]
+}

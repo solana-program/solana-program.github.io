@@ -1,0 +1,135 @@
+---
+title: Nonce accounts
+description: Create, read, advance, and close SPL Nonce accounts.
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { NonceAdvanceDiagram } from '@/components/programmatic-signer/nonce-advance';
+
+An SPL Nonce account stores a hash that advances each time an authorized action succeeds. It also records the authority allowed to advance it and the slot it was initialized in. An authority can hold as many nonce accounts as it needs. Each one advances independently of the others.
+
+## Create a nonce account
+
+Create the account and initialize it in the same transaction with the programmatic signer PDA as its authority. `Initialize` needs no signature, so an account left uninitialized could be claimed by someone else. It sets the first nonce from the most recent slot hash. The authority can never change after that.
+
+<Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
+<Tab value="CLI">
+
+`nonce create` does both. `--cold-authority` derives the PDA from the authority's public key and stores it as the nonce authority.
+
+```sh
+spl-programmatic-signer nonce create --cold-authority <AUTHORITY>
+```
+
+</Tab>
+<Tab value="TypeScript">
+
+Coming soon 🚧
+
+</Tab>
+</Tabs>
+
+## Account layout
+
+Fetch the account, check that SPL Nonce owns it and that it holds exactly 72 bytes, then read the three fields.
+
+| Byte range | Field               | Type      |
+| ---------- | ------------------- | --------- |
+| `0..32`    | Current nonce value | `Hash`    |
+| `32..64`   | Authority           | `Address` |
+| `64..72`   | Initialization slot | `u64`     |
+
+## How the nonce advances
+
+<NonceAdvanceDiagram />
+
+Executor advances the nonce before running any application instruction, so nothing inside the message can consume the same nonce twice. `Advance` needs signer privilege from the nonce authority. When that authority is a programmatic signer PDA, Ed25519 Signer grants it after verifying the authority's signature. SPL Nonce never interprets that hash. Executor is what ties it to the message it runs. [Execution source](https://github.com/solana-program/ed25519-programmatic-signer/blob/5eb7ed9d229cb53bfd77375db6e01b1fc45c68aa/executor/program/src/execute.rs).
+
+## Nonce derivation
+
+Every nonce is a SHA-256 hash. Including the program ID and account address ties each one to a single nonce account. Each `+` below joins raw bytes. Addresses and hashes are their 32 bytes, not base58 text. The tags are plain UTF-8 with no terminator.
+
+### First nonce
+
+`Initialize` derives the first nonce from the most recent slot hash.
+
+```text
+first nonce = SHA-256("spl-nonce::init::v1" + program ID + nonce account + slot hash)
+```
+
+### Every next nonce
+
+Each advance hashes the current nonce with the commitment of the execution message that consumed it.
+
+```text
+commitment = SHA-256(execution message)
+next nonce = SHA-256("spl-nonce::step::v1" + program ID + nonce account + current nonce + commitment)
+```
+
+These inputs are all known ahead of time, so anyone who knows the planned messages can compute future values. That gives ordering and replay protection. The values themselves are public and never meant to be secret.
+
+## Run actions in parallel
+
+One authority can control any number of nonce accounts. Each advances independently, so authorizations on different accounts never block each other. Use a separate account for each independent stream of work.
+
+Each authorization is bound to its own nonce account, so it cannot be relayed against a different one. Separate nonce accounts do not stop two actions from conflicting in other ways, such as two payments drawn from the same balance.
+
+## Chain actions in order
+
+A chain lets you sign several authorizations in one session and hand them to a relayer to run later, in a fixed order. For example, a treasury can sign next month's four weekly payouts at once on an air-gapped machine. The relayer can submit each one only after the previous one has run, so it cannot skip ahead, reorder them, or run one twice.
+
+This works because each nonce depends on the one before it and on the exact execution message that consumed it, so every future value can be computed in advance. Build action A against the current nonce, compute the nonce A leaves behind, and build B against that.
+
+<Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
+<Tab value="CLI">
+
+Coming soon 🚧
+
+</Tab>
+<Tab value="TypeScript">
+
+Coming soon 🚧
+
+</Tab>
+</Tabs>
+
+A chain runs strictly in order. If A fails, the nonce does not move, so A can be retried and B waits. The rest of the chain stops working if:
+
+- A's execution message changes, since B expects the value A leaves behind
+- another authorization or a cancellation consumes a value in the chain first
+
+## Cancel an authorization
+
+A signature cannot be recalled. To cancel an authorization that expects nonce `N`, get any other action that consumes `N` to land first. A keypair nonce authority can sign a plain `Advance` transaction. A programmatic signer PDA needs an approved execution message with no instructions, which advances the nonce and does nothing else.
+
+<Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
+<Tab value="CLI">
+
+`nonce advance` will consume the current value and cancel every authorization built against it. Coming soon 🚧
+
+</Tab>
+<Tab value="TypeScript">
+
+Coming soon 🚧
+
+</Tab>
+</Tabs>
+
+The cancellation and the original authorization compete for the same nonce. Whichever lands first consumes the nonce, so the other fails.
+
+## Withdraw and close
+
+`Withdraw` sends lamports from the nonce account to another account. A partial withdrawal must leave the rent-exempt minimum. Withdrawing the full balance closes the account, which is allowed only after its initialization slot so no one can recreate it to restore its first nonce.
+
+<Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
+<Tab value="CLI">
+
+Coming soon 🚧
+
+</Tab>
+<Tab value="TypeScript">
+
+Coming soon 🚧
+
+</Tab>
+</Tabs>
