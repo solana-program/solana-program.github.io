@@ -15,7 +15,7 @@ Create the account and initialize it in the same transaction with the programmat
 <Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
 <Tab value="CLI">
 
-`nonce create` does both. `--cold-authority` derives the PDA from the authority's public key and stores it as the nonce authority.
+`nonce create` does both. `--cold-authority` takes the public key of your offline Ed25519 signer. The CLI derives its programmatic signer PDA and stores that PDA as the nonce authority.
 
 ```sh
 spl-programmatic-signer nonce create --cold-authority <AUTHORITY>

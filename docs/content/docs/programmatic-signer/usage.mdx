@@ -111,7 +111,7 @@ spl-programmatic-signer nonce create \
   --url "$RPC"
 ```
 
-`--cold-authority` derives the PDA from the authority's public key and stores it as the nonce authority. `--nonce-authority` stores an address as given instead. The CLI generates a throwaway keypair for the new account unless you pass `--nonce-keypair`, fetches the rent minimum, sends `CreateAccount` and `Initialize` together, and reads the account back. The output includes the nonce account address and its first nonce value. Keep the address.
+`--cold-authority` takes the public key of your offline Ed25519 signer. The CLI derives its programmatic signer PDA and stores that PDA as the nonce authority. `--nonce-authority` stores an address as given instead. The CLI generates a throwaway keypair for the new account unless you pass `--nonce-keypair`, fetches the rent minimum, sends `CreateAccount` and `Initialize` together, and reads the account back. The output includes the nonce account address and its first nonce value. Keep the address.
 
 ```sh
 NONCE_ACCOUNT=<Nonce account from the output>
