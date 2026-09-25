@@ -12,11 +12,11 @@ An action is carried in three nested layers. The execution message says what to 
 
 ## The three layers
 
-| Layer                 | Purpose                                                                           | Signed by                      | Blockhash field          |
-| --------------------- | --------------------------------------------------------------------------------- | ------------------------------ | ------------------------ |
-| Execution message     | Holds the application instructions to run                                         | Nobody                         | The expected nonce value |
-| Authorization message | Wraps the execution message in one `Execute` call and binds it to a nonce account | Every required authority       | Ignored                  |
-| Relay transaction     | Carries the authorization on chain and pays the fee                               | The relayer and any co-signers | A recent blockhash       |
+| Layer                 | Purpose                                                                           | Signed by                      | Blockhash field                     |
+|-----------------------|-----------------------------------------------------------------------------------|--------------------------------|-------------------------------------|
+| Execution message     | Holds the application instructions to run                                         | Nobody                         | The expected nonce value            |
+| Authorization message | Wraps the execution message in one `Execute` call and binds it to a nonce account | Every required authority       | Ignored. CLI sets it to zero bytes. |
+| Relay transaction     | Carries the authorization on chain and pays the fee                               | The relayer and any co-signers | A recent blockhash                  |
 
 ## What the signatures cover
 
@@ -61,7 +61,7 @@ Changing the set of authorities changes the message and voids every signature co
 
 ## Three blockhash fields, three meanings
 
-In the execution message, the field holds the current nonce value. Executor compares it to the stored value and does not care whether it looks like a recent blockhash.
+In the execution message, the blockhash field holds the current nonce value. Executor compares it to the stored value and does not care whether it looks like a recent blockhash.
 
 In the authorization message, the programs ignore the field.
 
