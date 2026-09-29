@@ -252,8 +252,10 @@ in the reserve.
 
 The options for funding authorities are `sol-withdraw`, `sol-deposit`, and `stake-deposit`.
 
-Note: it is impossible to restrict stake withdrawals. This would create an opportunity
-for malicious pool managers to effectively lock user funds.
+Note: it is impossible to restrict stake withdrawals in the stake pool program.
+This would create an opportunity for malicious pool managers to effectively lock
+user funds. It is possible, however, for a pool token to be freezable, so a
+malicious pool operator could freeze a user's account.
 
 ## Stake Pool Staker Examples
 
