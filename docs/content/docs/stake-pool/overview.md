@@ -88,8 +88,8 @@ reserve, which is normal if the stake pool manager stakes all of the SOL in the 
 
 Alternatively, they can use the `withdraw-stake` instruction to withdraw an
 activated stake account in exchange for their SPL pool tokens. The user will get
-back a SOL stake account immediately. The ability to withdraw stake is always
-possible, under all circumstances.
+back a SOL stake account immediately. Unless the user's pool tokens are frozen,
+the ability to withdraw stake is always possible.
 
 Note: when withdrawing stake, if the user wants to withdraw the SOL in the stake
 account, they must first deactivate the stake account and wait until the next
@@ -127,12 +127,13 @@ This can also be useful in a few situations:
 * Maintenance mode. If the pool needs time to reset fees or otherwise, the
   manager can temporarily restrict new deposits by setting deposit authorities.
 
-Note: in order to keep user funds safe, stake withdrawals are always permitted.
+Note: in order to keep user funds safe, stake withdrawals are always permitted,
+unless the user's pool token account is frozen.
 
 ## Safety of Funds
 
 One of the primary aims of the stake pool program is to always allow pool token
-holders to withdraw their funds at any time.
+holders to withdraw their funds at any time, unless the pool tokens are frozen.
 
 To that end, let's look at the three classes of stake accounts in the stake pool system:
 
