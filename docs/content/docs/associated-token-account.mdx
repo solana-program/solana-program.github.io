@@ -3,6 +3,8 @@ title: Associated Token Account
 description: Mapping user wallets to SPL-Token accounts
 ---
 
+import { AtaDerivationDiagram } from '@/components/associated-token-account/ata-derivation';
+
 This program defines the convention and provides the mechanism for mapping
 the user's wallet address to the associated token accounts they hold.
 
@@ -78,6 +80,10 @@ function findAssociatedTokenAddress(
     )[0];
 }
 ```
+
+<AtaDerivationDiagram />
+
+Example based on a [PLGRND](https://plgrnd.io) flow.
 
 ### Creating an Associated Token Account
 
