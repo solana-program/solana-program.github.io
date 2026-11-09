@@ -43,7 +43,7 @@ Fetch the account, check that the Nonce program owns it and that it holds exactl
 
 <NonceAdvanceDiagram />
 
-Executor advances the nonce before running any application instruction, so nothing inside the message can consume the same nonce twice. `Advance` needs signer privilege from the nonce authority. When that authority is a programmatic signer PDA, Ed25519 Signer grants it after verifying the authority's signature. The Nonce program never interprets that hash. Executor is what ties it to the message it runs. [Execution source](https://github.com/solana-program/ed25519-programmatic-signer/blob/5eb7ed9d229cb53bfd77375db6e01b1fc45c68aa/executor/program/src/execute.rs).
+Executor advances the nonce before running any application instruction, so nothing inside the message can consume the same nonce twice. `Advance` needs signer privilege from the nonce authority. When that authority is a programmatic signer PDA, Ed25519 Signer grants it after verifying the authority's signature. The Nonce program never interprets that hash. Executor is what ties it to the message it runs. [Execution source](https://github.com/solana-program/ed25519-programmatic-signer/blob/825ab23b00c9c014b4a0de96e4cb4e5e2e12def4/executor/program/src/execute.rs).
 
 ## Nonce derivation
 
@@ -54,17 +54,28 @@ Every nonce is a SHA-256 hash. Including the program ID and account address ties
 `Initialize` derives the first nonce from the most recent slot hash.
 
 ```text
-first nonce = SHA-256("spl-nonce::init::v1" + program ID + nonce account + slot hash)
+first nonce = SHA-256("spl-nonce::init::v1" + Nonce program ID + nonce account + slot hash)
 ```
 
-### Every next nonce
+### Next nonce
 
-Each advance hashes the current nonce with the commitment of the execution message that consumed it.
+Each `Advance` replaces the current nonce with a value derived from it.
 
 ```text
-commitment = SHA-256(execution message)
-next nonce = SHA-256("spl-nonce::step::v1" + program ID + nonce account + current nonce + commitment)
+commitment = SHA-256(serialized execution message)
+next nonce = SHA-256("spl-nonce::step::v1" + Nonce program ID + nonce account + current nonce
+                     + transition signer + commitment)
 ```
+
+The transition signer is a PDA the Message Executor derives at `EjCSGNbrrM7YJBwR9iqnrb87L1TYHfUtZ5L4gwQjWLFg`. The executor signs every `Advance` with it. This prevents the nonce authority from skipping an approved action and still reaching the nonce expected by the next authorization in the chain.
+
+| Input             | Ties the next nonce to                                      |
+| ----------------- | ----------------------------------------------------------- |
+| Current nonce     | The step before it, so steps run in order                   |
+| Transition signer | The executor that advanced it                               |
+| Commitment        | The exact execution message that consumed the current nonce |
+
+The Nonce program accepts any account that signs as the transition signer. A nonce authority that calls `Advance` directly with its own signer reaches a different next nonce. Any chain signed in advance then stops working.
 
 These inputs are all known ahead of time, so anyone who knows the planned messages can compute future values. That gives ordering and replay protection. The values themselves are public and never meant to be secret.
 

@@ -70,13 +70,13 @@ export function MessageLayersDiagram() {
             <MessageCard
               title="Authorization message"
               tone="teal"
-              tags={['Signed by the authorities']}
+              tags={['v1', 'Signed by the authorities']}
             >
               <InstructionFrame label="Execute instruction">
                 <MessageCard
                   title="Execution message"
                   tone="amber"
-                  tags={['Blockhash: nonce']}
+                  tags={['v1', 'Blockhash: nonce']}
                 >
                   <CardStack>
                     <div
