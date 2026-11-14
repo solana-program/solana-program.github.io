@@ -36,7 +36,7 @@ export function RequestFlowDiagram() {
       <FlowArrow>
         CPI <code>Execute(execution message)</code> + PDA signer
       </FlowArrow>
-      <Card title="Legacy Message Executor" tone="amber">
+      <Card title="Message Executor" tone="amber">
         Checks the execution message against the stored nonce, then advances the
         nonce and invokes each instruction in order.
       </Card>
