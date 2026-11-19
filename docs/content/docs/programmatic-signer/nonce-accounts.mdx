@@ -180,7 +180,7 @@ Nonce: DSwoLZkhbWt3SMoU4AZW42rHjbwPBWBKG3cbvp9wdo4h
 
 `--nonce-authority` is the keypair that controls the nonce account. When the nonce authority is a programmatic signer PDA, as in this guide, pass the signing authority's keypair. This cancels every authorization built against the previous value and every chained step after it.
 
-If the signing authority can't run the CLI, pass its address instead. `nonce advance` then prints an unsigned authorization message to sign externally and submit like any [external signature](/docs/programmatic-signer/signing#sign-with-an-external-signer). `nonce withdraw` works the same way.
+If the signing authority can't run the CLI, pass its address instead. `nonce advance` then prints an unsigned authorization message to [sign outside the CLI](/docs/programmatic-signer/signing#sign-outside-the-cli) and submit. `nonce withdraw` works the same way.
 
 </Tab>
 <Tab value="TypeScript">
