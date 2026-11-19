@@ -194,17 +194,24 @@ Coming soon 🚧
 ```sh
 spl-programmatic-signer transaction simulate "$EXECUTION_MESSAGE" "$NONCE_ACCOUNT" \
   --strip-transaction-config \
+  --signing-pubkey "$AUTHORITY" \
   --fee-payer relayer.json
 ```
 
 ```text
-Simulation succeeded (9380 compute units, excluding authority signature verification)
+Simulation succeeded (9415 compute units, excluding authority signature verification)
 
 SOL balance changes:
-  4eyTy3ArvmhdNHyNHHynNmfoxuoyjP5oeb9xWpdn8vAz  -◎0.001000000
+  4eyTy3ArvmhdNHyNHHynNmfoxuoyjP5oeb9xWpdn8vAz  -◎0.001000000  (PDA of DRE2gQ6RxNZtt175DB1H4ABCiFtnTY9NERGVW2VAAZwg)
   5w9aEhwnNex4TNXvD9nsEtdE6i7pSWukJEXjbZXWuHuz  +◎0.001000000
 
 Token balance changes:
+  none
+
+Account changes:
+  5w9aEhwnNex4TNXvD9nsEtdE6i7pSWukJEXjbZXWuHuz  created, owner 11111111111111111111111111111111, 0 bytes
+
+Authority changes:
   none
 ```
 
