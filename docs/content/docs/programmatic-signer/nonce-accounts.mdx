@@ -21,6 +21,8 @@ Create the account and initialize it in the same transaction with the programmat
 spl-programmatic-signer nonce create --cold-authority <AUTHORITY>
 ```
 
+Pass `--nonce-authority` instead of `--cold-authority` to store any address as given. The CLI generates a throwaway keypair for the new account unless you pass `--nonce-keypair`.
+
 </Tab>
 <Tab value="TypeScript">
 
@@ -77,7 +79,7 @@ The transition signer is a PDA the Message Executor derives at `EjCSGNbrrM7YJBwR
 
 The Nonce program accepts any account that signs as the transition signer. A nonce authority that calls `Advance` directly with its own signer reaches a different next nonce. Any chain signed in advance then stops working.
 
-These inputs are all known ahead of time, so anyone who knows the planned messages can compute future values. That gives ordering and replay protection. The values themselves are public and never meant to be secret.
+These inputs are all known ahead of time, so anyone who knows the planned messages can compute future values. That gives ordering and replay protection. The values themselves are public and never meant to be secret. That is what makes [chains](#chain-actions-in-order) possible.
 
 ## Run actions in parallel
 
@@ -94,7 +96,54 @@ This works because each nonce depends on the one before it and on the exact exec
 <Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
 <Tab value="CLI">
 
-Coming soon 🚧
+Build both execution messages as in [Basic usage](/docs/programmatic-signer/usage#build-the-execution-message). Save the base64 messages as `MESSAGE_A` and `MESSAGE_B`. `transaction sign` fills in each expected nonce.
+
+```sh
+spl-programmatic-signer transaction sign \
+  --execution-message "$MESSAGE_A" \
+  --strip-transaction-config \
+  --nonce-account "$NONCE_ACCOUNT" \
+  --nonce-hash "$NONCE_VALUE" \
+  --nonce-authority "$PDA" \
+  --authority "$AUTHORITY" \
+  --signer authority.json
+```
+
+Keep A's authorization message and signature, and the next nonce value it leaves behind.
+
+```sh
+AUTHORIZATION_MESSAGE_A=<Authorization message from the output>
+SIGNATURE_A=<Signature from the output>
+NEXT_NONCE=<Next nonce value from the output>
+```
+
+Sign B against that next nonce. This works offline, since the value is computed. Keep B's authorization message and signature the same way.
+
+```sh
+spl-programmatic-signer transaction sign \
+  --execution-message "$MESSAGE_B" \
+  --strip-transaction-config \
+  --nonce-account "$NONCE_ACCOUNT" \
+  --nonce-hash "$NEXT_NONCE" \
+  --nonce-authority "$PDA" \
+  --authority "$AUTHORITY" \
+  --signer authority.json
+```
+
+Submitting B before A fails, because the nonce account does not hold B's expected value yet.
+
+```sh
+spl-programmatic-signer transaction submit \
+  --authorization-message "$AUTHORIZATION_MESSAGE_B" \
+  --signer "$AUTHORITY=$SIGNATURE_B" \
+  --fee-payer relayer.json
+```
+
+```text
+Error: authorization message uses nonce value ETG5s3Cy6Gk3FN9zmaxC9KzU8h5trVHPBdkrq4WyEsBG, but nonce account DdUc3xdvrXGmc6bjSbpE1zgaqDA4TCEWCrqcSPz26CoD currently has 7nA2WQuAJAHsoMKx4L5NgqcpMzrTa7W3trdWif6yJWpb
+```
+
+Submit A the same way, then B. After both land, `nonce show` prints the next nonce value that signing B reported.
 
 </Tab>
 <Tab value="TypeScript">
@@ -116,7 +165,22 @@ A signature cannot be recalled. To cancel an authorization that expects nonce `N
 <Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
 <Tab value="CLI">
 
-`nonce advance` will consume the current value and cancel every authorization built against it. Coming soon 🚧
+```sh
+spl-programmatic-signer nonce advance "$NONCE_ACCOUNT" \
+  --nonce-authority authority.json \
+  --fee-payer relayer.json
+```
+
+```text
+Signature: 427iF7zzJp3giypA2SUDujohxcRjWn9BxwTvK2ELEnhPdLptPKaYLV311Ld9T8DDLry13yBRpghJuNQ4ge8Tp858
+Nonce account: DdUc3xdvrXGmc6bjSbpE1zgaqDA4TCEWCrqcSPz26CoD
+Previous nonce: 3M6CDAu5tyaxAbtzetTMwPMbsKr3KPueE9CSAs1scBoJ
+Nonce: DSwoLZkhbWt3SMoU4AZW42rHjbwPBWBKG3cbvp9wdo4h
+```
+
+`--nonce-authority` is the keypair that controls the nonce account. When the nonce authority is a programmatic signer PDA, as in this guide, pass the signing authority's keypair. This cancels every authorization built against the previous value and every chained step after it.
+
+If the signing authority can't run the CLI, pass its address instead. `nonce advance` then prints an unsigned authorization message to sign externally and submit like any [external signature](/docs/programmatic-signer/signing#sign-with-an-external-signer). `nonce withdraw` works the same way.
 
 </Tab>
 <Tab value="TypeScript">
@@ -128,6 +192,16 @@ Coming soon 🚧
 
 The cancellation and the original authorization compete for the same nonce. Whichever lands first consumes the nonce, so the other fails.
 
+## Failure and retry
+
+A failed relay transaction rolls back the nonce advance, so the authorization stays valid. Submit it again or cancel it with `nonce advance`. Retrying after a timeout is safe, since an authorization that already landed fails on resubmission.
+
+## Deadlines
+
+Authorizations have no built-in deadline. They stay valid until their nonce account advances.
+
+To add a deadline, include an instruction in the execution message that fails after it, such as [Lighthouse](https://github.com/Jac0xb/lighthouse)'s `AssertSysvarClock`. After the deadline the action fails and the nonce does not move.
+
 ## Withdraw and close
 
 `Withdraw` sends lamports from the nonce account to another account. A partial withdrawal must leave the rent-exempt minimum. Withdrawing the full balance closes the account, which is allowed only after its initialization slot so no one can recreate it to restore its first nonce.
@@ -135,7 +209,23 @@ The cancellation and the original authorization compete for the same nonce. Whic
 <Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
 <Tab value="CLI">
 
-Coming soon 🚧
+Pass `ALL` to withdraw the full balance and close the account.
+
+```sh
+spl-programmatic-signer nonce withdraw "$NONCE_ACCOUNT" "$RECIPIENT" ALL \
+  --nonce-authority authority.json \
+  --fee-payer relayer.json
+```
+
+```text
+Signature: 3xKK8acQ33Sfe2KYJ2BhwgEdKbfidhDCcorPUtWaMWsR7oM8rrZSXMQRzE9EP7yjXG5KB3cVwDUALBxP4Htnki73
+Nonce account: EDGer1HU5yWvPRBUQx4wq68gEsH4dscsXsgh1vdf5qxb
+Destination: BjvtG87DbdELr62KjDtvUVvt7SLKTXRy92BGfJrnfzph
+Withdrawn: ◎0.001016000
+Nonce account closed
+```
+
+To withdraw part of the balance, pass an amount instead of `ALL`.
 
 </Tab>
 <Tab value="TypeScript">
