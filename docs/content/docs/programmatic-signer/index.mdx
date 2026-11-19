@@ -15,9 +15,9 @@ Solana transactions must be processed before their recent blockhash expires. Thi
 - A nonce is advanced to prevent replays
 - The approved instructions are invoked via CPI
 
-This works because the authority never signs a transaction. It signs a message that the program checks, so nothing expires with a blockhash. The program then acts through a PDA derived from the authority's key. That PDA holds the funds and serves as the authority for token, stake, and other accounts.
+This works because the authority signs a message that the program checks, so nothing expires with a blockhash. The program then acts through a PDA derived from the authority's key. That PDA holds the funds and serves as the authority for token, stake, and other accounts.
 
-This offers an alternative to _Durable Nonces_, whose deprecation and removal are planned through SIMD-XXXX (forthcoming).
+This offers an alternative to _Durable Nonces_, whose removal is proposed in [SIMD-0723](https://github.com/solana-foundation/solana-improvement-documents/pull/723).
 
 ## Deployments
 
@@ -30,10 +30,10 @@ Audits and remediations to come before the v1 release and before any mainnet dep
 | Program                 | Address                                        |
 |-------------------------|------------------------------------------------|
 | Ed25519 Signer          | `EdSigVfK1DkeMrjFNDMjwfQaJPhPTtX7jW8uPv3oKEgN` |
-| Legacy Message Executor | `ExecxgyHYsAXB4c5dZodV1zJZ9hqfsDCYkRDRATrpkFR` |
+| Message Executor        | `ExecxgyHYsAXB4c5dZodV1zJZ9hqfsDCYkRDRATrpkFR` |
 | Nonce                   | `Noncediea1fH12usShuQAz28UhgAeuE5Maf32LsMUQB`  |
 
-Currently deployed to **Devnet** from commit [`5eb7ed9`](https://github.com/solana-program/ed25519-programmatic-signer/tree/5eb7ed9d229cb53bfd77375db6e01b1fc45c68aa).
+Currently deployed to **Devnet**. The programs are not yet deployed on mainnet.
 
 ## Use cases
 

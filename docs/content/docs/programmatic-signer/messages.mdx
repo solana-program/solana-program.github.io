@@ -18,6 +18,10 @@ An action is carried in three nested layers. The execution message says what to 
 | Authorization message | Wraps the execution message in one `Execute` call and binds it to a nonce account | Every required authority       | Ignored. CLI sets it to zero bytes. |
 | Relay transaction     | Carries the authorization on chain and pays the fee                               | The relayer and any co-signers | A recent blockhash                  |
 
+## Wire encoding
+
+The authorization message is a [v1 message](https://github.com/solana-foundation/solana-improvement-documents/pull/385), serialized with the `0x81` version prefix.
+
 ## What the signatures cover
 
 Ed25519 Signer checks each authority signature against the serialized authorization message, with signature `i` checked against the key at index `i`. Each signature covers those exact bytes, not a serialized transaction, a signature count prefix, or the base64 text. Because the account keys are part of those bytes, **a relayer cannot swap in different accounts**. Signer rejects any `Submit` account that differs from the signed key at the same index.
@@ -36,7 +40,7 @@ Pass every authority with a repeated `--authority` flag. Each authority runs the
 ```sh
 # Alice
 spl-programmatic-signer transaction sign \
-  --inner-message "$EXECUTION_MESSAGE" \
+  --execution-message "$EXECUTION_MESSAGE" \
   --nonce-account "$NONCE_ACCOUNT" \
   --nonce-hash "$NONCE_VALUE" \
   --nonce-authority "$NONCE_AUTHORITY" \
@@ -47,7 +51,7 @@ spl-programmatic-signer transaction sign \
 # Bob runs the same command with --signer bob.json
 ```
 
-Once every signature is collected, `transaction submit` will relay them together in one transaction. Coming soon 🚧
+Once every signature is collected, `transaction submit` relays them together in one transaction.
 
 </Tab>
 <Tab value="TypeScript">
@@ -61,7 +65,7 @@ Changing the set of authorities changes the message and voids every signature co
 
 ## Three blockhash fields, three meanings
 
-In the execution message, the blockhash field holds the current nonce value. Executor compares it to the stored value and does not care whether it looks like a recent blockhash.
+In the execution message, the blockhash field holds the expected nonce value. Executor compares it to the stored value and does not care whether it looks like a recent blockhash.
 
 In the authorization message, the programs ignore the field.
 
@@ -82,15 +86,21 @@ None of these fields gives an authorization a deadline. It stays valid until its
 Some applications need an ordinary keypair to sign alongside the PDA. For the application to see that key as a signer:
 
 1. The execution message lists it as a required signer.
-2. It is a required signer of the authorization message and signs it.
+2. The authorization message lists it as a required signer.
 3. It signs the relay transaction.
-
-Another reason to add a signer is to pin the relayer. To have one specific wallet submit and pay, list its address as a required signer in the authorization message. It does not need to appear anywhere else. Signer requires its signature over the authorization, so no one can submit without that wallet. That does not strictly make it the fee payer, but in practice the wallet that must sign is the one that submits.
 
 <Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
 <Tab value="CLI">
 
-Coming soon 🚧
+For an ordinary wallet used by the execution message, pass its keypair when submitting the signed authorization:
+
+```sh
+spl-programmatic-signer transaction submit \
+  --authorization-message "$AUTHORIZATION_MESSAGE" \
+  --signer "$AUTHORITY=$SIGNATURE" \
+  --relay-signer wallet.json \
+  --fee-payer relayer.json
+```
 
 </Tab>
 <Tab value="TypeScript">
@@ -99,3 +109,46 @@ Coming soon 🚧
 
 </Tab>
 </Tabs>
+
+## Require the relayer's signature
+
+An authority can sign an authorization that also requires a signature from a specific wallet, usually the intended fee payer. That wallet can sign the outer relay transaction without signing the authorization separately.
+
+<Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
+<Tab value="CLI">
+
+Using the [Basic usage setup](/docs/programmatic-signer/usage), add the public address of `relayer.json` with `--required-relay-signer` when signing:
+
+```sh
+RELAYER=<Public address of relayer.json>
+spl-programmatic-signer transaction sign \
+  --execution-message "$EXECUTION_MESSAGE" \
+  --strip-transaction-config \
+  --nonce-account "$NONCE_ACCOUNT" \
+  --nonce-hash "$NONCE_VALUE" \
+  --nonce-authority "$PDA" \
+  --authority "$AUTHORITY" \
+  --required-relay-signer "$RELAYER" \
+  --signer authority.json
+```
+
+Pass the resulting authorization message and authority signature to the relayer. It submits with its keypair as the fee payer, supplying the required outer signature:
+
+```sh
+AUTHORIZATION_MESSAGE=<Authorization message from the output>
+SIGNATURE=<Signature from the output>
+spl-programmatic-signer transaction submit \
+  --authorization-message "$AUTHORIZATION_MESSAGE" \
+  --signer "$AUTHORITY=$SIGNATURE" \
+  --fee-payer relayer.json
+```
+
+</Tab>
+<Tab value="TypeScript">
+
+Coming soon 🚧
+
+</Tab>
+</Tabs>
+
+Note: The required wallet can also sign the authorization message instead. In that case, another wallet may pay for and sign the outer transaction.
