@@ -5,6 +5,7 @@
     "migration",
     "architecture",
     "messages",
-    "nonce-accounts"
+    "nonce-accounts",
+    "security"
   ]
 }

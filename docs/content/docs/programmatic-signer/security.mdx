@@ -1,0 +1,25 @@
+---
+title: Security and upgrades
+description: Who can upgrade the programs and when to deploy your own.
+---
+
+A programmatic signer PDA can only do what the deployed programs allow. Each program's upgrade policy decides who can deploy new code and whether bugs can be patched. Review it before relying on a deployment.
+
+## Upgrade policies
+
+Upgrades apply to existing PDAs, including how their signatures are verified and what approved actions can do. Authorizations run under the code deployed when they are submitted, including ones signed before an upgrade.
+
+| Upgrade authority       | Can be patched                       | Who can deploy new code     | Consider                               |
+| ----------------------- | ------------------------------------ | --------------------------- | -------------------------------------- |
+| Single key              | Yes                                  | The key holder              | Custody of that key                    |
+| Independent multisig    | Yes                                  | The multisig quorum         | The quorum's threshold and key custody |
+| Programmatic signer PDA | Yes, unless the bug blocks approvals | The PDA's signing authority | Risk of a signer program bug           |
+| None (immutable)        | No                                   | Nobody                      | Bugs stay in place                     |
+
+## Check a deployment
+
+Run `solana program show` for each program in [Deployments](/docs/programmatic-signer#deployments). The `Authority` field shows who can upgrade it. `none` means the program is immutable.
+
+## Deploy your own
+
+If the public deployment's upgrade policy does not fit your security model, deploy the programs yourself with the policy you want. Your program IDs [derive different PDAs](/docs/programmatic-signer/architecture#pda-derivation).
