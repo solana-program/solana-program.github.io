@@ -198,6 +198,8 @@ spl-programmatic-signer transaction simulate "$EXECUTION_MESSAGE" "$NONCE_ACCOUN
   --fee-payer relayer.json
 ```
 
+`--signing-pubkey` adds the `(PDA of …)` label when the authority's public key isn't already in the simulated transaction, so you can identify the authority of a programmatic signer PDA without a manual lookup.
+
 ```text
 Simulation succeeded (9415 compute units, excluding authority signature verification)
 
