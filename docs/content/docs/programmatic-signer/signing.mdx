@@ -1,0 +1,129 @@
+---
+title: Signing and relaying
+description: CLI workflows for authorities and relayers beyond basic usage.
+---
+
+[Basic usage](/docs/programmatic-signer/usage) walks through one authority and one relayer. This page covers multi-party and offline signing. The examples reuse its shell variables.
+
+## Authorities
+
+### Several signing authorities
+
+One authorization message can require several signing authorities. Each authority's PDA must either control the nonce account or be listed as a signer in the execution message. Here Alice's PDA sends SOL and Bob's PDA controls the nonce account. Build the transfer as in [Basic usage](/docs/programmatic-signer/usage#build-the-execution-message) with Alice's PDA as the source and fee payer. Create the nonce account with `nonce create --cold-authority "$BOB"` and use its current nonce value in the signing command.
+
+Pass every authority with a repeated `--authority` flag. Each person runs the same command with their own `--signer`.
+
+```sh
+# Alice
+spl-programmatic-signer transaction sign \
+  --execution-message "$EXECUTION_MESSAGE" \
+  --strip-transaction-config \
+  --nonce-account "$NONCE_ACCOUNT" \
+  --nonce-hash "$NONCE_VALUE" \
+  --nonce-authority "$BOB_PDA" \
+  --authority "$ALICE" \
+  --authority "$BOB" \
+  --signer alice.json
+
+# Bob runs the same command with --signer bob.json
+```
+
+Both runs produce the same authorization message, so compare their `Authorization message hash` lines before submitting. Keep the message and each person's signature.
+
+```sh
+AUTHORIZATION_MESSAGE=<Authorization message from the output>
+ALICE_SIGNATURE=<Signature from Alice's output>
+BOB_SIGNATURE=<Signature from Bob's output>
+```
+
+Submit with one `--signer` per authority, in any order. The CLI places each signature in the slot of its address.
+
+```sh
+spl-programmatic-signer transaction submit \
+  --authorization-message "$AUTHORIZATION_MESSAGE" \
+  --signer "$ALICE=$ALICE_SIGNATURE" \
+  --signer "$BOB=$BOB_SIGNATURE" \
+  --fee-payer relayer.json
+```
+
+### Sign outside the CLI
+
+Custody systems and HSMs that cannot run the CLI can sign the authorization message bytes themselves. Omit `--signer` and `transaction sign` prints the authorization message without signing it.
+
+```sh
+spl-programmatic-signer transaction sign \
+  --execution-message "$EXECUTION_MESSAGE" \
+  --strip-transaction-config \
+  --nonce-account "$NONCE_ACCOUNT" \
+  --nonce-hash "$NONCE_VALUE" \
+  --nonce-authority "$PDA" \
+  --authority "$AUTHORITY"
+```
+
+Base64-decode the authorization message and have the signer produce a plain Ed25519 signature over those bytes. Do not hash them first or wrap them in an off-chain message format. Then submit the base58 signature.
+
+```sh
+AUTHORIZATION_MESSAGE=<Authorization message from the output>
+spl-programmatic-signer transaction submit \
+  --authorization-message "$AUTHORIZATION_MESSAGE" \
+  --signer "$AUTHORITY=$EXTERNAL_SIGNATURE" \
+  --fee-payer relayer.json
+```
+
+`nonce advance` and `nonce withdraw` print an unsigned authorization message the same way when `--nonce-authority` is given as an address. See [Cancel an authorization](/docs/programmatic-signer/nonce-accounts#cancel-an-authorization).
+
+### Required relay signers
+
+Add `--required-relay-signer` to make a co-signer approve every submission.
+
+```sh
+spl-programmatic-signer transaction sign \
+  --execution-message "$EXECUTION_MESSAGE" \
+  --strip-transaction-config \
+  --nonce-account "$NONCE_ACCOUNT" \
+  --nonce-hash "$NONCE_VALUE" \
+  --nonce-authority "$PDA" \
+  --authority "$AUTHORITY" \
+  --required-relay-signer "$COSIGNER" \
+  --signer authority.json
+```
+
+`transaction submit` refuses to send until the co-signer approves in one of two ways.
+
+| The co-signer signs                                                 | Pass to `transaction submit`               |
+| ------------------------------------------------------------------- | ------------------------------------------ |
+| The relay transaction                                               | `--relay-signer cosigner.json`             |
+| The authorization message, [outside the CLI](#sign-outside-the-cli) | `--signer "$COSIGNER=$COSIGNER_SIGNATURE"` |
+
+Signing the relay transaction keeps the co-signer in control of each submission. A signature over the authorization message lets anyone holding it submit.
+
+To require a specific relayer, pass its address as the required relay signer. Its fee payer signature on the relay transaction satisfies the requirement.
+
+```sh
+spl-programmatic-signer transaction submit \
+  --authorization-message "$AUTHORIZATION_MESSAGE" \
+  --signer "$AUTHORITY=$SIGNATURE" \
+  --fee-payer relayer.json
+```
+
+## Relayers
+
+### Forwarded signers
+
+Some actions need an ordinary key as a signer alongside the PDA, such as a wallet that also pays into a trade. That key is a [forwarded signer](/docs/programmatic-signer/messages#additional-transaction-signers). For a simple example, build the transfer from the ordinary wallet as in [Basic usage](/docs/programmatic-signer/usage#build-the-execution-message), using the wallet address as the source and fee payer in the execution message. Keep the programmatic signer PDA as the nonce authority.
+
+Sign as usual. The review lists the wallet under "Forwarded signers (sign at submission)".
+
+At submission the wallet signs the relay transaction. Before it signs, the CLI prints the same review `transaction sign` shows and asks for confirmation.
+
+```sh
+spl-programmatic-signer transaction submit \
+  --authorization-message "$AUTHORIZATION_MESSAGE" \
+  --signer "$AUTHORITY=$SIGNATURE" \
+  --relay-signer wallet.json \
+  --fee-payer relayer.json
+```
+
+### Set the relay compute budget
+
+When the CLI signs the relay online, it simulates to size the compute unit and loaded accounts data limits with a 10% margin. Use `--with-compute-unit-limit` or `--with-loaded-accounts-data-size-limit` to set either limit explicitly. `--with-priority-fee` sets an optional priority fee in lamports.

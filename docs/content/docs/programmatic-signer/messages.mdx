@@ -3,7 +3,6 @@ title: Messages
 description: The three message layers and what you sign.
 ---
 
-import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 import { MessageLayersDiagram } from '@/components/programmatic-signer/message-layers';
 
 An action is carried in three nested layers. The execution message says what to do. The authorization message wraps it with the executor and nonce account it will use. Once the authorities sign it, the message and its signatures together form an authorization. The relay transaction carries that authorization onto the network.
@@ -32,36 +31,7 @@ The execution message has no signatures at all. Its header requests signer privi
 
 One authorization message can require several Ed25519 authorities. Every one of them signs the same bytes. Their signatures go into `Submit` in the order the authorities appear at the front of the account list. Every listed authority must sign. They can sign at different times and in any order. Adding one signature leaves the others valid.
 
-<Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
-<Tab value="CLI">
-
-Pass every authority with a repeated `--authority` flag. Each authority runs the same command with their own `--signer`.
-
-```sh
-# Alice
-spl-programmatic-signer transaction sign \
-  --execution-message "$EXECUTION_MESSAGE" \
-  --nonce-account "$NONCE_ACCOUNT" \
-  --nonce-hash "$NONCE_VALUE" \
-  --nonce-authority "$NONCE_AUTHORITY" \
-  --authority "$ALICE" \
-  --authority "$BOB" \
-  --signer alice.json
-
-# Bob runs the same command with --signer bob.json
-```
-
-Once every signature is collected, `transaction submit` relays them together in one transaction.
-
-</Tab>
-<Tab value="TypeScript">
-
-Coming soon 🚧
-
-</Tab>
-</Tabs>
-
-Changing the set of authorities changes the message and voids every signature collected so far.
+Changing the set of authorities changes the message and voids every signature collected so far. See [Several signing authorities](/docs/programmatic-signer/signing#several-signing-authorities) for the CLI steps.
 
 ## Three blockhash fields, three meanings
 
@@ -89,66 +59,10 @@ Some applications need an ordinary keypair to sign alongside the PDA. For the ap
 2. The authorization message lists it as a required signer.
 3. It signs the relay transaction.
 
-<Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
-<Tab value="CLI">
-
-For an ordinary wallet used by the execution message, pass its keypair when submitting the signed authorization:
-
-```sh
-spl-programmatic-signer transaction submit \
-  --authorization-message "$AUTHORIZATION_MESSAGE" \
-  --signer "$AUTHORITY=$SIGNATURE" \
-  --relay-signer wallet.json \
-  --fee-payer relayer.json
-```
-
-</Tab>
-<Tab value="TypeScript">
-
-Coming soon 🚧
-
-</Tab>
-</Tabs>
+The CLI calls this key a forwarded signer. See [Forwarded signers](/docs/programmatic-signer/signing#forwarded-signers).
 
 ## Require the relayer's signature
 
 An authority can sign an authorization that also requires a signature from a specific wallet, usually the intended fee payer. That wallet can sign the outer relay transaction without signing the authorization separately.
 
-<Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
-<Tab value="CLI">
-
-Using the [Basic usage setup](/docs/programmatic-signer/usage), add the public address of `relayer.json` with `--required-relay-signer` when signing:
-
-```sh
-RELAYER=<Public address of relayer.json>
-spl-programmatic-signer transaction sign \
-  --execution-message "$EXECUTION_MESSAGE" \
-  --strip-transaction-config \
-  --nonce-account "$NONCE_ACCOUNT" \
-  --nonce-hash "$NONCE_VALUE" \
-  --nonce-authority "$PDA" \
-  --authority "$AUTHORITY" \
-  --required-relay-signer "$RELAYER" \
-  --signer authority.json
-```
-
-Pass the resulting authorization message and authority signature to the relayer. It submits with its keypair as the fee payer, supplying the required outer signature:
-
-```sh
-AUTHORIZATION_MESSAGE=<Authorization message from the output>
-SIGNATURE=<Signature from the output>
-spl-programmatic-signer transaction submit \
-  --authorization-message "$AUTHORIZATION_MESSAGE" \
-  --signer "$AUTHORITY=$SIGNATURE" \
-  --fee-payer relayer.json
-```
-
-</Tab>
-<Tab value="TypeScript">
-
-Coming soon 🚧
-
-</Tab>
-</Tabs>
-
-Note: The required wallet can also sign the authorization message instead. In that case, another wallet may pay for and sign the outer transaction.
+The wallet can instead sign the authorization message. The CLI calls it a required relay signer. See [Required relay signers](/docs/programmatic-signer/signing#required-relay-signers).

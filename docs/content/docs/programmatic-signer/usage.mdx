@@ -5,12 +5,6 @@ description: Set up a programmatic signer, then sign and relay an action with th
 
 import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 
-<Callout type="warn" title="CLI and clients are in progress">
-
-Follow the [remaining work](https://github.com/solana-program/ed25519-programmatic-signer/issues/14). If something is missing, confusing, or doesn't fit your workflow, [open an issue](https://github.com/solana-program/ed25519-programmatic-signer/issues/new/choose).
-
-</Callout>
-
 The examples use the [programs deployed on Devnet](/docs/programmatic-signer#deployments). Configure the Solana CLI to use Devnet:
 
 ```sh
@@ -19,21 +13,14 @@ solana config set -ud
 
 ## Install
 
-<Callout type="info" title="Build from source">
-
-The Rust crates on crates.io are placeholders and the npm package is not published yet. Use the source builds below.
-
-</Callout>
-
 <Tabs groupId="programmatic-signer-client" items={["CLI", "TypeScript"]} persist defaultIndex={0}>
 <Tab value="CLI">
 
-You need Rust and Solana CLI 4.5 or later. The repository pins its toolchain.
+Install the [Programmatic Signer CLI](https://crates.io/crates/spl-programmatic-signer-cli) from crates.io with Rust 1.98.1 or later.
+This walkthrough also uses Solana CLI 4.5 or later to build the v1 execution message.
 
 ```sh
-git clone https://github.com/solana-program/ed25519-programmatic-signer.git
-cd ed25519-programmatic-signer
-cargo install --locked --path clients/cli
+cargo install --locked spl-programmatic-signer-cli
 spl-programmatic-signer --help
 ```
 
@@ -355,6 +342,12 @@ SOL balance changes:
   5w9aEhwnNex4TNXvD9nsEtdE6i7pSWukJEXjbZXWuHuz  +◎0.001000000
 
 Token balance changes:
+  none
+
+Account changes:
+  5w9aEhwnNex4TNXvD9nsEtdE6i7pSWukJEXjbZXWuHuz  created, owner 11111111111111111111111111111111, 0 bytes
+
+Authority changes:
   none
 ```
 
